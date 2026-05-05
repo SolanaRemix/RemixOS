@@ -17,7 +17,10 @@ export async function runGXQS(input: string): Promise<GXQSResult> {
       signal: controller.signal,
     });
     clearTimeout(timeout);
-    const data = await res.json() as { output: string };
+    const raw: unknown = await res.json();
+    const data = typeof raw === "object" && raw !== null && "output" in raw
+      ? (raw as { output: string })
+      : { output: String(raw) };
     return { output: data.output, engine: "gxqs" };
   } catch {
     // Fallback when Go service is not running

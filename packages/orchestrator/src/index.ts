@@ -18,7 +18,8 @@ export async function runTask(
     broadcast({ step: "planner", message: "Planner finished", data: plan, timestamp: Date.now() });
 
     const build: AgentResult = await builderAgent(plan);
-    broadcast({ step: "builder", message: "Builder finished", data: { type: (build.data as Record<string, unknown>)["type"] }, timestamp: Date.now() });
+    const buildType = (build.data as Record<string, unknown>)["type"];
+    broadcast({ step: "builder", message: "Builder finished", data: { type: buildType }, timestamp: Date.now() });
 
     const execution: AgentResult = await executorAgent(build);
     broadcast({ step: "executor", message: "Executor finished", timestamp: Date.now() });

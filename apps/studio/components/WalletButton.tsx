@@ -5,7 +5,7 @@ import { NeonButton } from "./NeonButton";
 import { useState } from "react";
 
 export function WalletButton() {
-  const { account, connect, disconnect, network } = useWallet();
+  const { account, connect, disconnect, network, error } = useWallet();
   const [showModal, setShowModal] = useState(false);
 
   if (account) {
@@ -33,6 +33,12 @@ export function WalletButton() {
           <div className="bg-[#0d1117] border border-white/20 rounded-2xl p-6 w-80 space-y-4">
             <h3 className="text-white font-semibold text-lg">Connect Wallet</h3>
             <p className="text-white/50 text-sm">Choose your wallet provider</p>
+
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-3 py-2 text-xs text-red-400">
+                {error}
+              </div>
+            )}
 
             <div className="space-y-2">
               <button

@@ -6,19 +6,19 @@ const commands = [
   { cmd: "pnpm install", label: "Reinstalling dependencies" },
 ];
 
-let fixed = false;
+let ranSuccessfully = false;
 
 for (const { cmd, label } of commands) {
   try {
     console.log(`  ▶ ${label}...`);
     execSync(cmd, { stdio: "inherit" });
-    fixed = true;
+    ranSuccessfully = true;
   } catch {
     console.log(`  ✗ ${label} failed`);
   }
 }
 
-if (fixed) {
+if (ranSuccessfully) {
   console.log("✅ Auto-fix complete. Re-running tests...");
   try {
     execSync("pnpm test", { stdio: "inherit" });

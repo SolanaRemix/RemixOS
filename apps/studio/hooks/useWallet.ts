@@ -5,6 +5,7 @@ import { useState, useCallback } from "react";
 interface WalletState {
   account: string | null;
   network: string | null;
+  error: string | null;
   connect: (provider: "metamask" | "phantom") => Promise<void>;
   disconnect: () => Promise<void>;
 }
@@ -26,11 +27,13 @@ declare global {
 export function useWallet(): WalletState {
   const [account, setAccount] = useState<string | null>(null);
   const [network, setNetwork] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const connect = useCallback(async (provider: "metamask" | "phantom") => {
+    setError(null);
     if (provider === "metamask") {
       if (!window.ethereum) {
-        alert("MetaMask not detected. Please install MetaMask.");
+        setError("MetaMask not detected. Please install MetaMask.");
         return;
       }
       const accounts = await window.ethereum.request({
@@ -42,7 +45,7 @@ export function useWallet(): WalletState {
       }
     } else if (provider === "phantom") {
       if (!window.solana?.isPhantom) {
-        alert("Phantom wallet not detected. Please install Phantom.");
+        setError("Phantom wallet not detected. Please install Phantom.");
         return;
       }
       const resp = await window.solana.connect();
@@ -59,5 +62,5 @@ export function useWallet(): WalletState {
     setNetwork(null);
   }, [network]);
 
-  return { account, network, connect, disconnect };
+  return { account, network, error, connect, disconnect };
 }
