@@ -36,7 +36,7 @@ export function useWallet(): WalletState {
       const accounts = await window.ethereum.request({
         method: "eth_requestAccounts",
       }) as string[];
-      if (accounts[0]) {
+      if (accounts.length > 0 && accounts[0]) {
         setAccount(accounts[0]);
         setNetwork("EVM");
       }

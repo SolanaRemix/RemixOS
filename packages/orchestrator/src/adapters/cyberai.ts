@@ -1,7 +1,7 @@
 import type { CyberTask } from "@remixos/shared";
 
 export async function loadCyberPlan(prompt: string): Promise<CyberTask> {
-  // Adapter: later connect real CyberAi repo
+  // Adapter: later connect real CyberAi repo (async for future await calls)
   const lower = prompt.toLowerCase();
   const steps: string[] = [];
 
