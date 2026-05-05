@@ -43,6 +43,12 @@ app.post("/run", async (req, res) => {
     return;
   }
 
+  const MAX_PROMPT_BYTES = 16384; // 16 KB
+  if (Buffer.byteLength(prompt, "utf8") > MAX_PROMPT_BYTES) {
+    res.status(413).json({ error: "Prompt too large (max 16384 bytes)" });
+    return;
+  }
+
   try {
     const result = await runTask(prompt.trim(), broadcast);
     if ("error" in result) {

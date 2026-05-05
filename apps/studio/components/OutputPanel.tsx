@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Glass } from "./Glass";
-import { NeonButton } from "./NeonButton";
 
 interface OutputPanelProps {
   result: Record<string, unknown> | null;
