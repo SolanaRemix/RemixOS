@@ -10,13 +10,17 @@ export async function runGXQS(input: string): Promise<GXQSResult> {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 5000);
-    const res = await fetch("http://localhost:8080/run", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ input }),
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
+    let res: Response;
+    try {
+      res = await fetch("http://localhost:8080/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ input }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
     const raw: unknown = await res.json();
     const data = typeof raw === "object" && raw !== null && "output" in raw
       ? (raw as { output: string })

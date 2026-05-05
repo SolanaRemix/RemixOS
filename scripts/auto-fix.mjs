@@ -19,7 +19,14 @@ for (const { cmd, label } of commands) {
 }
 
 if (ranSuccessfully) {
-  console.log("✅ Auto-fix complete. Re-running tests...");
+  console.log("✅ Auto-fix complete. Re-running build and tests...");
+  try {
+    execSync("pnpm build", { stdio: "inherit" });
+    console.log("✅ Build passing after auto-fix.");
+  } catch {
+    console.log("❌ Build still failing after auto-fix. Manual review required.");
+    process.exit(1);
+  }
   try {
     execSync("pnpm test", { stdio: "inherit" });
     console.log("✅ Tests passing after auto-fix.");

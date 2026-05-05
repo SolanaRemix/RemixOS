@@ -45,7 +45,11 @@ app.post("/run", async (req, res) => {
 
   try {
     const result = await runTask(prompt.trim(), broadcast);
-    res.json(result);
+    if ("error" in result) {
+      res.status(500).json(result);
+    } else {
+      res.json(result);
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Internal server error";
     res.status(500).json({ error: message });
