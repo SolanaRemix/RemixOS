@@ -5,6 +5,16 @@ export interface AppScaffold {
   output: BuildOutput;
 }
 
+/** Escape a string for safe embedding inside HTML text content. */
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export function generateApp(goal: string, type: BuildOutput["type"] = "webapp"): AppScaffold {
   const files: Record<string, string> = {
     "src/App.tsx": generateReactComponent(goal),
@@ -14,7 +24,7 @@ export function generateApp(goal: string, type: BuildOutput["type"] = "webapp"):
 
   const output: BuildOutput = {
     type,
-    html: `<div style="font-family:sans-serif;background:#05070a;color:#fff;padding:20px"><h1 style="color:#8b5cf6">${goal}</h1></div>`,
+    html: `<div style="font-family:sans-serif;background:#05070a;color:#fff;padding:20px"><h1 style="color:#8b5cf6">${escapeHtml(goal)}</h1></div>`,
     code: generateReactComponent(goal),
     api: { "/api/run": "handler" },
     ...(type === "trade" && { web3: { network: "base", action: "trade" } }),
@@ -24,6 +34,8 @@ export function generateApp(goal: string, type: BuildOutput["type"] = "webapp"):
 }
 
 function generateReactComponent(goal: string): string {
+  // Use JSON.stringify to safely embed goal as a JS string literal
+  const safeGoal = JSON.stringify(goal);
   return `'use client';
 import React from 'react';
 
@@ -31,7 +43,7 @@ interface AppProps {
   title?: string;
 }
 
-export default function App({ title = '${goal}' }: AppProps) {
+export default function App({ title = ${safeGoal} }: AppProps) {
   return (
     <div className="min-h-screen bg-[#05070a] text-white">
       <div className="max-w-4xl mx-auto p-8">
@@ -46,11 +58,13 @@ export default function App({ title = '${goal}' }: AppProps) {
 }
 
 function generateApiRoute(goal: string): string {
+  // Use JSON.stringify to safely embed goal as a JS string literal
+  const safeGoal = JSON.stringify(goal);
   return `import { NextRequest, NextResponse } from 'next/server';
 
-// Generated API route for: ${goal}
+// Generated API route for app
 export async function GET(req: NextRequest) {
-  return NextResponse.json({ status: 'ok', goal: '${goal}' });
+  return NextResponse.json({ status: 'ok', goal: ${safeGoal} });
 }
 
 export async function POST(req: NextRequest) {
@@ -60,14 +74,20 @@ export async function POST(req: NextRequest) {
 }
 
 function generatePackageJson(goal: string): string {
+  const safeName =
+    goal
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "") || "untitled-app";
   return JSON.stringify({
-    name: goal.toLowerCase().replace(/\s+/g, "-"),
+    name: safeName,
     version: "0.1.0",
     private: true,
     dependencies: {
       react: "^18",
       "react-dom": "^18",
-      next: "^14",
+      next: "^15",
     },
   }, null, 2);
 }

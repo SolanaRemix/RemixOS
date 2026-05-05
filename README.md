@@ -47,7 +47,7 @@ Return result
 ```
 remixos/
   apps/
-    studio/      → Next.js 14 UI (AI Studio interface)
+    studio/      → Next.js 15 UI (AI Studio interface)
     gateway/     → Express + WebSocket API server
   packages/
     shared/      → TypeScript types & utilities
@@ -69,7 +69,7 @@ remixos/
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | Next.js 14, React 18, TypeScript, Tailwind CSS |
+| Frontend | Next.js 15, React 18, TypeScript, Tailwind CSS |
 | Backend | Node.js, Express, WebSocket (ws) |
 | Monorepo | pnpm workspaces |
 | Testing | Vitest |

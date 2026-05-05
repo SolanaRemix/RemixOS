@@ -2,8 +2,9 @@
   "name": "@remixos/gateway",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "ts-node src/index.ts",
+    "dev": "tsx src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
@@ -22,6 +23,6 @@
     "@types/cors": "^2.8.17",
     "@types/node": "^20.0.0",
     "typescript": "^5.4.0",
-    "ts-node": "^10.9.2"
+    "tsx": "^4.7.0"
   }
 }

@@ -28,11 +28,15 @@ jobs:
           pnpm install
 
       - name: Build
+        id: build
         run: pnpm build
+        continue-on-error: true
 
       - name: Test
+        id: test
         run: pnpm test
+        continue-on-error: true
 
       - name: Run Auto Fix Agent
-        if: failure()
-        run: node scripts/auto-fix.js
+        if: steps.build.outcome == 'failure' || steps.test.outcome == 'failure'
+        run: node scripts/auto-fix.mjs

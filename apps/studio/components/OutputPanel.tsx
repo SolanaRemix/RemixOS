@@ -62,7 +62,7 @@ export function OutputPanel({ result, loading = false }: OutputPanelProps) {
           <iframe
             srcDoc={html ?? "<div style='color:white;padding:20px;font-family:sans-serif'>No HTML preview available</div>"}
             className="w-full h-full rounded-xl bg-white/5 border border-white/10"
-            sandbox="allow-scripts"
+            sandbox=""
             title="App preview"
           />
         )}
