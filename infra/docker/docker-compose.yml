@@ -1,0 +1,24 @@
+version: "3.9"
+services:
+  gateway:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+    restart: unless-stopped
+
+  go-core:
+    image: golang:1.21-alpine
+    working_dir: /app
+    volumes:
+      - ../../packages/go-core:/app
+    command: go run main.go
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+    restart: unless-stopped
