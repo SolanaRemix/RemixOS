@@ -39,11 +39,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Type check
-        run: pnpm typecheck
-
+      # Build first so workspace packages (e.g. @remixos/shared) have dist/*.d.ts available for downstream typechecks
       - name: Build packages
         run: pnpm build
+
+      - name: Type check
+        run: pnpm typecheck
 
       - name: Run tests
         run: pnpm test
