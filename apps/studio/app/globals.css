@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #05070a;
+  --glass: rgba(255, 255, 255, 0.08);
+  --neon-purple: #8b5cf6;
+  --neon-blue: #3b82f6;
+  --neon-green: #22c55e;
+  --neon-orange: #f97316;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--bg);
+  color: #ffffff;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+}
+
+.btn-neon {
+  @apply px-4 py-2 rounded-xl text-white bg-gradient-to-r from-purple-500 via-blue-500 to-green-500 hover:scale-105 transition-transform duration-150 font-medium shadow-lg;
+}
+
+.glass-panel {
+  @apply bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-4 shadow-xl;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.5);
+  border-radius: 3px;
+}
