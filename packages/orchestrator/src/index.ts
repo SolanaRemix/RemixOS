@@ -1,8 +1,42 @@
-import type { AgentResult, AuditResult, BroadcastFn, LogEvent, TaskResult } from "@remixos/shared";
+import { randomUUID } from "node:crypto";
+import type {
+  AgentResult,
+  AuditResult,
+  BroadcastFn,
+  LogEvent,
+  QueueJob,
+  QueuedTaskResult,
+  TaskResult,
+} from "@remixos/shared";
 import { plannerAgent, builderAgent, executorAgent, securityAgent, fixerAgent } from "@remixos/agents";
 import { loadCyberPlan } from "./adapters/cyberai.js";
 
 function noopBroadcast(_event: LogEvent): void {}
+
+function parsePositiveInteger(value: string | undefined, fallback: number): number {
+  if (value === undefined) {
+    return fallback;
+  }
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+const queueStore = new Map<string, QueueJob>();
+const queueJobTtlMs = parsePositiveInteger(process.env["REMIXOS_QUEUE_JOB_TTL_MS"], 5 * 60 * 1000);
+
+function shouldCleanupJob(job: QueueJob, now: number): boolean {
+  return (job.status === "completed" || job.status === "failed")
+    && typeof job.completedAt === "number"
+    && job.completedAt + queueJobTtlMs <= now;
+}
+
+function cleanupQueueStore(now = Date.now()): void {
+  for (const [jobId, job] of queueStore.entries()) {
+    if (shouldCleanupJob(job, now)) {
+      queueStore.delete(jobId);
+    }
+  }
+}
 
 export async function runTask(
   prompt: string,
@@ -53,4 +87,47 @@ export async function runTask(
   }
 }
 
-export type { TaskResult, LogEvent, BroadcastFn };
+export async function runQueuedTask(
+  prompt: string,
+  broadcast: BroadcastFn = noopBroadcast
+): Promise<QueuedTaskResult | { error: string; job: QueueJob }> {
+  const now = Date.now();
+  cleanupQueueStore(now);
+  const job: QueueJob = {
+    id: randomUUID(),
+    status: "queued",
+    createdAt: now,
+    promptBytes: Buffer.byteLength(prompt, "utf8"),
+  };
+
+  queueStore.set(job.id, job);
+  broadcast({ step: "queue", message: "Task queued", data: { jobId: job.id, status: job.status }, timestamp: now });
+
+  job.status = "processing";
+  job.startedAt = Date.now();
+  queueStore.set(job.id, job);
+  broadcast({ step: "queue", message: "Task processing", data: { jobId: job.id, status: job.status }, timestamp: job.startedAt });
+
+  const result = await runTask(prompt, broadcast);
+  job.completedAt = Date.now();
+
+  if ("error" in result) {
+    job.status = "failed";
+    job.error = result.error;
+    queueStore.set(job.id, job);
+    broadcast({ step: "queue", message: "Task failed", data: { jobId: job.id, status: job.status }, timestamp: job.completedAt });
+    return { error: result.error, job };
+  }
+
+  job.status = "completed";
+  queueStore.set(job.id, job);
+  broadcast({ step: "queue", message: "Task completed", data: { jobId: job.id, status: job.status }, timestamp: job.completedAt });
+  return { job, result };
+}
+
+export function getQueuedTask(jobId: string): QueueJob | undefined {
+  cleanupQueueStore();
+  return queueStore.get(jobId);
+}
+
+export type { TaskResult, LogEvent, BroadcastFn, QueueJob, QueuedTaskResult };

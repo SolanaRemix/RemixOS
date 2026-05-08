@@ -39,6 +39,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Lint
+        run: pnpm lint
+
       # Build first so workspace packages (e.g. @remixos/shared) have dist/*.d.ts available for downstream typechecks
       - name: Build packages
         run: pnpm build
@@ -48,3 +51,6 @@ jobs:
 
       - name: Run tests
         run: pnpm test
+
+      - name: Dependency audit (high+)
+        run: pnpm audit --audit-level=high

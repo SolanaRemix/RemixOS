@@ -227,6 +227,18 @@ docker-compose -f infra/docker/docker-compose.yml up
 
 ## 📡 API Reference
 
+### `POST /auth/token`
+
+Issue a short-lived JWT used for authenticated orchestration requests.
+When `REMIXOS_AUTH_REQUIRED=true`, this route is restricted to loopback requests unless
+`REMIXOS_BOOTSTRAP_SECRET` is set (then callers must provide `x-remixos-bootstrap-secret`).
+
+```bash
+curl -X POST http://localhost:3001/auth/token \
+  -H "Content-Type: application/json" \
+  -d '{"workspaceId":"studio","userId":"dev-user"}'
+```
+
 ### `POST /run`
 
 Submit a natural-language prompt to the AI orchestration pipeline.
@@ -236,6 +248,7 @@ Submit a natural-language prompt to the AI orchestration pipeline.
 ```bash
 curl -X POST http://localhost:3001/run \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <token>" \
   -d '{"prompt": "Build a Web3 trading dashboard with a price chart and swap button"}'
 ```
 
@@ -245,6 +258,7 @@ curl -X POST http://localhost:3001/run \
 
 ```json
 {
+  "job":       { "id": "...", "status": "completed", "createdAt": 1700000000000, "promptBytes": 78 },
   "plan":      { "status": "success", "data": { "steps": ["ui", "api", "web3"] }, "logs": [] },
   "build":     { "type": "trade", "html": "<html>…</html>", "code": "…", "web3": { "chain": "base" } },
   "execution": { "status": "success", "data": { "txHash": null } },
@@ -252,7 +266,11 @@ curl -X POST http://localhost:3001/run \
 }
 ```
 
-On internal failure the gateway returns `HTTP 500` with `{ "error": "…" }`.
+Gateway responses:
+- `401` invalid/missing bearer token
+- `413` prompt too large
+- `429` rate limit exceeded
+- `500` internal orchestration failure
 
 ---
 
@@ -266,6 +284,7 @@ Connect to `ws://localhost:3001` after submitting a run to receive real-time age
 { "step": "builder",   "message": "HTML generated (2.1 KB)", "timestamp": 1700000001200 }
 { "step": "executor",  "message": "Execution complete",       "timestamp": 1700000002800 }
 { "step": "security",  "message": "Audit passed — 0 issues",  "timestamp": 1700000003100 }
+{ "step": "queue",     "message": "Task completed",           "timestamp": 1700000003400 }
 ```
 
 ---
