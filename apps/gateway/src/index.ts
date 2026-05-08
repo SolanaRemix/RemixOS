@@ -48,8 +48,8 @@ function hasStrongSecretShape(secret: string): boolean {
   const hasDigit = /\d/.test(secret);
   const hasSymbol = /[^a-zA-Z0-9]/.test(secret);
   const classes = [hasLower, hasUpper, hasDigit, hasSymbol].filter(Boolean).length;
-  const hasSingleCharRepetition = /^(.)(\1)+$/.test(secret);
-  return classes >= 3 && !hasSingleCharRepetition;
+  const isAllSameCharacter = /^(.)(\1)+$/.test(secret);
+  return classes >= 3 && !isAllSameCharacter;
 }
 
 const authRequired = process.env["REMIXOS_AUTH_REQUIRED"] !== "false";
@@ -106,7 +106,7 @@ function cleanupRateLimitStore(now = Date.now()): void {
 
 setInterval(() => {
   cleanupRateLimitStore();
-}, Math.max(1000, appConfig.rateLimitWindowMs)).unref();
+}, Math.min(60000, Math.max(5000, Math.floor(appConfig.rateLimitWindowMs / 2)))).unref();
 
 app.use(cors());
 app.use(express.json());
