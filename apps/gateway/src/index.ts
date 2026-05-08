@@ -48,7 +48,7 @@ function hasStrongSecretShape(secret: string): boolean {
   const hasDigit = /\d/.test(secret);
   const hasSymbol = /[^a-zA-Z0-9]/.test(secret);
   const classes = [hasLower, hasUpper, hasDigit, hasSymbol].filter(Boolean).length;
-  const isAllSameCharacter = /^(.)(\1)+$/.test(secret);
+  const isAllSameCharacter = /^(.)\1*$/.test(secret);
   return classes >= 3 && !isAllSameCharacter;
 }
 
@@ -285,7 +285,16 @@ function enforceTokenIssuancePolicy(req: GatewayRequest, res: express.Response, 
   }
 
   if (!isLoopbackIp(req.ip ?? "")) {
-    res.status(403).json({ error: "Token endpoint is restricted" });
+    const detectedIp = req.ip ?? "unknown";
+    logAudit({
+      requestId: req.requestId ?? "unknown",
+      actorId: "anonymous",
+      action: "auth_failed",
+      status: "failure",
+      timestamp: Date.now(),
+      metadata: { reason: "token_endpoint_restricted", detectedIp },
+    });
+    res.status(403).json({ error: "Token endpoint is restricted to loopback unless bootstrap secret is configured" });
     return;
   }
 

@@ -13,8 +13,16 @@ import { loadCyberPlan } from "./adapters/cyberai.js";
 
 function noopBroadcast(_event: LogEvent): void {}
 
+function parsePositiveInteger(value: string | undefined, fallback: number): number {
+  if (value === undefined) {
+    return fallback;
+  }
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 const queueStore = new Map<string, QueueJob>();
-const QUEUE_JOB_TTL_MS = 5 * 60 * 1000;
+const QUEUE_JOB_TTL_MS = parsePositiveInteger(process.env["REMIXOS_QUEUE_JOB_TTL_MS"], 5 * 60 * 1000);
 
 function shouldCleanupJob(job: QueueJob, now: number): boolean {
   return (job.status === "completed" || job.status === "failed")
