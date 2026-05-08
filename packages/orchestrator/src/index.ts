@@ -10,6 +10,7 @@ import type {
 } from "@remixos/shared";
 import { plannerAgent, builderAgent, executorAgent, securityAgent, fixerAgent } from "@remixos/agents";
 import { loadCyberPlan } from "./adapters/cyberai.js";
+import { getAiRouter } from "./adapters/ai-router.js";
 
 function noopBroadcast(_event: LogEvent): void {}
 
@@ -47,6 +48,11 @@ export async function runTask(
 
     const cyberPlan = await loadCyberPlan(prompt);
     broadcast({ step: "cyberai", message: "CyberAi plan loaded", data: cyberPlan, timestamp: Date.now() });
+
+    // Log AI provider availability
+    const aiRouter = getAiRouter();
+    const providerCount = aiRouter.getProviders().length;
+    broadcast({ step: "ai-router", message: `AI router ready (${providerCount} provider(s) configured)`, timestamp: Date.now() });
 
     const plan: AgentResult = await plannerAgent(prompt);
     broadcast({ step: "planner", message: "Planner finished", data: plan, timestamp: Date.now() });
@@ -131,3 +137,4 @@ export function getQueuedTask(jobId: string): QueueJob | undefined {
 }
 
 export type { TaskResult, LogEvent, BroadcastFn, QueueJob, QueuedTaskResult };
+export { AiRouter, getAiRouter } from "./adapters/ai-router.js";

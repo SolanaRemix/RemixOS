@@ -11,6 +11,7 @@ import { useTheme } from "@/components/ThemeProvider";
 import { useToast } from "@/components/ToastProvider";
 import { useLogs } from "@/hooks/useLogs";
 import { useWorkspaceState } from "@/hooks/useWorkspaceState";
+import Link from "next/link";
 
 const GATEWAY_URL = process.env["NEXT_PUBLIC_GATEWAY_URL"] ?? "http://localhost:3001";
 const WS_URL = process.env["NEXT_PUBLIC_WS_URL"] ?? "ws://localhost:3001";
@@ -126,6 +127,17 @@ export default function Home() {
           <span className="font-semibold text-lg">RemixOS Studio</span>
           <span className="text-xs text-white/40 font-mono">v1.2-beta</span>
         </div>
+        <nav className="hidden md:flex items-center gap-1">
+          <Link href="/" className="px-3 py-1.5 rounded-lg text-xs text-white/80 hover:text-white hover:bg-white/10 transition-all">
+            Studio
+          </Link>
+          <Link href="/builder" className="px-3 py-1.5 rounded-lg text-xs text-white/80 hover:text-white hover:bg-white/10 transition-all">
+            AI Builder
+          </Link>
+          <Link href="/admin" className="px-3 py-1.5 rounded-lg text-xs text-white/80 hover:text-white hover:bg-white/10 transition-all">
+            Admin
+          </Link>
+        </nav>
         <div className="flex items-center gap-2">
           <NeonButton variant="secondary" onClick={toggleTheme}>
             {theme === "dark" ? "☀ Light" : "🌙 Dark"}
