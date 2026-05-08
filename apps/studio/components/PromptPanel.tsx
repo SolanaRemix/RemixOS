@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import { Glass } from "./Glass";
 import { NeonButton } from "./NeonButton";
 
 interface PromptPanelProps {
   onRun: (prompt: string) => void;
+  prompt: string;
+  onPromptChange: (value: string) => void;
   loading?: boolean;
 }
 
@@ -16,9 +17,7 @@ const EXAMPLES = [
   "Run an arbitrage trade strategy on BASE",
 ];
 
-export function PromptPanel({ onRun, loading = false }: PromptPanelProps) {
-  const [prompt, setPrompt] = useState("");
-
+export function PromptPanel({ onRun, prompt, onPromptChange, loading = false }: PromptPanelProps) {
   const handleSubmit = () => {
     if (prompt.trim() && !loading) {
       onRun(prompt.trim());
@@ -44,7 +43,7 @@ export function PromptPanel({ onRun, loading = false }: PromptPanelProps) {
         className="w-full bg-transparent text-white placeholder-white/30 outline-none resize-none text-sm leading-relaxed min-h-[80px]"
         placeholder="Describe what you want to build..."
         value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
+        onChange={(e) => onPromptChange(e.target.value)}
         onKeyDown={handleKeyDown}
         disabled={loading}
       />
@@ -53,7 +52,7 @@ export function PromptPanel({ onRun, loading = false }: PromptPanelProps) {
         {EXAMPLES.map((example) => (
           <button
             key={example}
-            onClick={() => setPrompt(example)}
+            onClick={() => onPromptChange(example)}
             className="text-xs text-white/40 hover:text-white/70 border border-white/10 rounded-lg px-2 py-1 transition-colors"
           >
             {example}
@@ -74,7 +73,7 @@ export function PromptPanel({ onRun, loading = false }: PromptPanelProps) {
         </NeonButton>
         <NeonButton
           variant="secondary"
-          onClick={() => setPrompt("")}
+          onClick={() => onPromptChange("")}
           disabled={loading}
         >
           Clear

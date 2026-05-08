@@ -1,17 +1,17 @@
 "use client";
 
-import { useState } from "react";
 import { Glass } from "./Glass";
+import { Skeleton } from "./Skeleton";
+import type { OutputTab } from "@/hooks/useWorkspaceState";
 
 interface OutputPanelProps {
   result: Record<string, unknown> | null;
+  tab: OutputTab;
+  onTabChange: (tab: OutputTab) => void;
   loading?: boolean;
 }
 
-type Tab = "preview" | "code" | "json";
-
-export function OutputPanel({ result, loading = false }: OutputPanelProps) {
-  const [tab, setTab] = useState<Tab>("preview");
+export function OutputPanel({ result, tab, onTabChange, loading = false }: OutputPanelProps) {
 
   const html = typeof result?.["build"] === "object" && result["build"] !== null
     ? (result["build"] as Record<string, unknown>)["html"] as string | undefined
@@ -28,10 +28,10 @@ export function OutputPanel({ result, loading = false }: OutputPanelProps) {
           Output
         </h2>
         <div className="flex gap-1">
-          {(["preview", "code", "json"] as Tab[]).map((t) => (
+          {(["preview", "code", "json"] as OutputTab[]).map((t) => (
             <button
               key={t}
-              onClick={() => setTab(t)}
+              onClick={() => onTabChange(t)}
               className={`text-xs px-2 py-1 rounded-lg transition-colors ${
                 tab === t
                   ? "bg-white/20 text-white"
@@ -46,8 +46,11 @@ export function OutputPanel({ result, loading = false }: OutputPanelProps) {
 
       <div className="h-64 overflow-auto">
         {loading && (
-          <div className="flex items-center justify-center h-full">
-            <div className="w-8 h-8 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
+          <div className="space-y-2 p-2">
+            <Skeleton className="h-4 w-2/5" />
+            <Skeleton className="h-4 w-3/5" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-4 w-1/2" />
           </div>
         )}
 
