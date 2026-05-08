@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 
 type ToastVariant = "info" | "success" | "error";
 
@@ -16,6 +16,7 @@ interface ToastContextValue {
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
+const TOAST_DURATION_MS = 4200;
 
 const variantClass: Record<ToastVariant, string> = {
   info: "border-blue-400/40",
@@ -25,15 +26,16 @@ const variantClass: Record<ToastVariant, string> = {
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const nextToastId = useRef(1);
 
   const dismiss = useCallback((id: number) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
   }, []);
 
   const showToast = useCallback((toast: Omit<Toast, "id">) => {
-    const id = Date.now() + Math.floor(Math.random() * 1000);
+    const id = nextToastId.current++;
     setToasts((prev) => [...prev, { id, ...toast }]);
-    window.setTimeout(() => dismiss(id), 4200);
+    window.setTimeout(() => dismiss(id), TOAST_DURATION_MS);
   }, [dismiss]);
 
   const value = useMemo<ToastContextValue>(() => ({ showToast }), [showToast]);

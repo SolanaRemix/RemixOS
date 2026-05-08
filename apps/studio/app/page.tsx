@@ -98,7 +98,7 @@ export default function Home() {
             R
           </div>
           <span className="font-semibold text-lg">RemixOS Studio</span>
-          <span className="text-xs text-white/40 font-mono">PR2 Foundation</span>
+          <span className="text-xs text-white/40 font-mono">v1.2-beta</span>
         </div>
         <div className="flex items-center gap-2">
           <NeonButton variant="secondary" onClick={toggleTheme}>
@@ -133,7 +133,7 @@ export default function Home() {
         {state.activeWorkspaceTab === "history" ? (
           <div className="glass-panel">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-white/70">Workspace History</h2>
-            <p className="state-message mt-2 text-sm">Version history UI is now wired as a persistent workspace tab and ready for backend timeline integration.</p>
+            <p className="state-message mt-2 text-sm">No history entries yet. Saved runs and snapshots will appear here.</p>
           </div>
         ) : null}
 
