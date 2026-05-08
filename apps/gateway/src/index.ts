@@ -48,7 +48,7 @@ function hasStrongSecretShape(secret: string): boolean {
   const hasDigit = /\d/.test(secret);
   const hasSymbol = /[^a-zA-Z0-9]/.test(secret);
   const classes = [hasLower, hasUpper, hasDigit, hasSymbol].filter(Boolean).length;
-  const isAllSameCharacter = /^(.)\1*$/.test(secret);
+  const isAllSameCharacter = new Set(secret).size === 1;
   return classes >= 3 && !isAllSameCharacter;
 }
 
@@ -112,7 +112,7 @@ function cleanupRateLimitStore(now = Date.now()): void {
   }
 }
 
-setInterval(() => {
+const rateLimitCleanupInterval = setInterval(() => {
   cleanupRateLimitStore();
 }, calculateRateLimitCleanupInterval(appConfig.rateLimitWindowMs)).unref();
 
@@ -411,5 +411,14 @@ httpServer.listen(PORT, () => {
   console.log(`RemixOS Gateway running on http://localhost:${PORT}`);
   console.log(`WebSocket server ready on ws://localhost:${PORT}`);
 });
+
+function shutdown(): void {
+  clearInterval(rateLimitCleanupInterval);
+  wss.close();
+  httpServer.close();
+}
+
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
 
 export default app;

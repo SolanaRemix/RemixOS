@@ -22,12 +22,12 @@ function parsePositiveInteger(value: string | undefined, fallback: number): numb
 }
 
 const queueStore = new Map<string, QueueJob>();
-const QUEUE_JOB_TTL_MS = parsePositiveInteger(process.env["REMIXOS_QUEUE_JOB_TTL_MS"], 5 * 60 * 1000);
+const queueJobTtlMs = parsePositiveInteger(process.env["REMIXOS_QUEUE_JOB_TTL_MS"], 5 * 60 * 1000);
 
 function shouldCleanupJob(job: QueueJob, now: number): boolean {
   return (job.status === "completed" || job.status === "failed")
     && typeof job.completedAt === "number"
-    && job.completedAt + QUEUE_JOB_TTL_MS <= now;
+    && job.completedAt + queueJobTtlMs <= now;
 }
 
 function cleanupQueueStore(now = Date.now()): void {
