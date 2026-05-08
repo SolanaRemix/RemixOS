@@ -230,6 +230,8 @@ docker-compose -f infra/docker/docker-compose.yml up
 ### `POST /auth/token`
 
 Issue a short-lived JWT used for authenticated orchestration requests.
+When `REMIXOS_AUTH_REQUIRED=true`, this route is restricted to loopback requests unless
+`REMIXOS_BOOTSTRAP_SECRET` is set (then callers must provide `x-remixos-bootstrap-secret`).
 
 ```bash
 curl -X POST http://localhost:3001/auth/token \
@@ -256,7 +258,7 @@ curl -X POST http://localhost:3001/run \
 
 ```json
 {
-  "job":       { "id": "...", "status": "completed", "createdAt": 1700000000000 },
+  "job":       { "id": "...", "status": "completed", "createdAt": 1700000000000, "promptBytes": 78 },
   "plan":      { "status": "success", "data": { "steps": ["ui", "api", "web3"] }, "logs": [] },
   "build":     { "type": "trade", "html": "<html>…</html>", "code": "…", "web3": { "chain": "base" } },
   "execution": { "status": "success", "data": { "txHash": null } },

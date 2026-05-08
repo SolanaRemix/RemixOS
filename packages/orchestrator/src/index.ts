@@ -14,6 +14,15 @@ import { loadCyberPlan } from "./adapters/cyberai.js";
 function noopBroadcast(_event: LogEvent): void {}
 
 const queueStore = new Map<string, QueueJob>();
+const QUEUE_JOB_TTL_MS = 5 * 60 * 1000;
+
+function cleanupQueueStore(now = Date.now()): void {
+  for (const [jobId, job] of queueStore.entries()) {
+    if ((job.status === "completed" || job.status === "failed") && job.completedAt && job.completedAt + QUEUE_JOB_TTL_MS <= now) {
+      queueStore.delete(jobId);
+    }
+  }
+}
 
 export async function runTask(
   prompt: string,
@@ -69,11 +78,12 @@ export async function runQueuedTask(
   broadcast: BroadcastFn = noopBroadcast
 ): Promise<QueuedTaskResult | { error: string; job: QueueJob }> {
   const now = Date.now();
+  cleanupQueueStore(now);
   const job: QueueJob = {
     id: randomUUID(),
-    prompt,
     status: "queued",
     createdAt: now,
+    promptBytes: Buffer.byteLength(prompt, "utf8"),
   };
 
   queueStore.set(job.id, job);
@@ -102,6 +112,7 @@ export async function runQueuedTask(
 }
 
 export function getQueuedTask(jobId: string): QueueJob | undefined {
+  cleanupQueueStore();
   return queueStore.get(jobId);
 }
 

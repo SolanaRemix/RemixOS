@@ -8,17 +8,62 @@ import { z } from "zod";
 import { runQueuedTask } from "@remixos/orchestrator";
 import type { AuditLogEntry, AuthClaims, LogEvent, RunPromptRequest } from "@remixos/shared";
 
+function parsePositiveIntegerEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined) {
+    return fallback;
+  }
+
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`Invalid ${name}: expected a positive integer`);
+  }
+
+  return parsed;
+}
+
+function parseTrustProxyEnv(value: string | undefined): boolean | number {
+  if (value === undefined || value === "false") {
+    return false;
+  }
+  if (value === "true") {
+    return true;
+  }
+
+  const numeric = Number(value);
+  if (Number.isInteger(numeric) && numeric >= 0) {
+    return numeric;
+  }
+
+  throw new Error("Invalid REMIXOS_TRUST_PROXY: expected true, false, or a non-negative integer");
+}
+
+function isLoopbackIp(ip: string): boolean {
+  return ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1";
+}
+
+const authRequired = process.env["REMIXOS_AUTH_REQUIRED"] !== "false";
+const configuredJwtSecret = process.env["REMIXOS_JWT_SECRET"];
+
+if (authRequired && (!configuredJwtSecret || configuredJwtSecret.length < 32)) {
+  throw new Error("REMIXOS_JWT_SECRET must be set to a strong (>=32 chars) value when auth is enabled");
+}
+
+const appConfig = {
+  authRequired,
+  jwtSecret: configuredJwtSecret ?? "remixos-dev-secret-change-me",
+  jwtTtlSeconds: parsePositiveIntegerEnv("REMIXOS_JWT_TTL_SECONDS", 3600),
+  rateLimitMax: parsePositiveIntegerEnv("REMIXOS_RATE_LIMIT_MAX", 60),
+  rateLimitWindowMs: parsePositiveIntegerEnv("REMIXOS_RATE_LIMIT_WINDOW_MS", 60000),
+  trustProxy: parseTrustProxyEnv(process.env["REMIXOS_TRUST_PROXY"]),
+  bootstrapSecret: process.env["REMIXOS_BOOTSTRAP_SECRET"],
+} as const;
+
 const app = express();
 const httpServer = createServer(app);
 const wss = new WebSocketServer({ server: httpServer });
 
-const appConfig = {
-  authRequired: process.env["REMIXOS_AUTH_REQUIRED"] !== "false",
-  jwtSecret: process.env["REMIXOS_JWT_SECRET"] ?? "remixos-dev-secret-change-me",
-  jwtTtlSeconds: Number(process.env["REMIXOS_JWT_TTL_SECONDS"] ?? "3600"),
-  rateLimitMax: Number(process.env["REMIXOS_RATE_LIMIT_MAX"] ?? "60"),
-  rateLimitWindowMs: Number(process.env["REMIXOS_RATE_LIMIT_WINDOW_MS"] ?? "60000"),
-} as const;
+app.set("trust proxy", appConfig.trustProxy);
 
 const runPromptSchema = z.object({
   prompt: z.string().trim().min(1),
@@ -40,6 +85,18 @@ interface RateLimitWindow {
 }
 
 const rateLimitStore = new Map<string, RateLimitWindow>();
+
+function cleanupRateLimitStore(now = Date.now()): void {
+  for (const [key, value] of rateLimitStore.entries()) {
+    if (value.resetAt <= now) {
+      rateLimitStore.delete(key);
+    }
+  }
+}
+
+setInterval(() => {
+  cleanupRateLimitStore();
+}, Math.max(1000, appConfig.rateLimitWindowMs)).unref();
 
 app.use(cors());
 app.use(express.json());
@@ -164,9 +221,11 @@ function enforceRateLimit(req: GatewayRequest, res: express.Response, next: expr
   const actorId = req.auth?.sub ?? "anonymous";
   const key = `${actorId}:${req.ip ?? "unknown"}`;
   const now = Date.now();
-  const existing = rateLimitStore.get(key);
 
-  if (!existing || existing.resetAt <= now) {
+  cleanupRateLimitStore(now);
+
+  const existing = rateLimitStore.get(key);
+  if (!existing) {
     rateLimitStore.set(key, { count: 1, resetAt: now + appConfig.rateLimitWindowMs });
     next();
     return;
@@ -192,11 +251,34 @@ function enforceRateLimit(req: GatewayRequest, res: express.Response, next: expr
   next();
 }
 
+function enforceTokenIssuancePolicy(req: GatewayRequest, res: express.Response, next: express.NextFunction): void {
+  if (!appConfig.authRequired) {
+    next();
+    return;
+  }
+
+  if (appConfig.bootstrapSecret) {
+    if (req.headers["x-remixos-bootstrap-secret"] !== appConfig.bootstrapSecret) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+    next();
+    return;
+  }
+
+  if (!isLoopbackIp(req.ip ?? "")) {
+    res.status(403).json({ error: "Token endpoint is restricted" });
+    return;
+  }
+
+  next();
+}
+
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", service: "remixos-gateway", timestamp: Date.now() });
 });
 
-app.post("/auth/token", (req, res) => {
+app.post("/auth/token", enforceRateLimit, enforceTokenIssuancePolicy, (req, res) => {
   const parsed = tokenRequestSchema.safeParse(req.body ?? {});
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid token request payload" });

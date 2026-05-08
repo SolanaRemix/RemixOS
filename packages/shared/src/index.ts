@@ -72,9 +72,9 @@ export type QueueJobStatus = "queued" | "processing" | "completed" | "failed";
 
 export interface QueueJob {
   id: string;
-  prompt: string;
   status: QueueJobStatus;
   createdAt: number;
+  promptBytes: number;
   startedAt?: number;
   completedAt?: number;
   error?: string;
