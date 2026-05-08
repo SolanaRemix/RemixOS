@@ -42,11 +42,21 @@ function isLoopbackIp(ip: string): boolean {
   return ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1";
 }
 
+function hasStrongSecretShape(secret: string): boolean {
+  const hasLower = /[a-z]/.test(secret);
+  const hasUpper = /[A-Z]/.test(secret);
+  const hasDigit = /\d/.test(secret);
+  const hasSymbol = /[^a-zA-Z0-9]/.test(secret);
+  const classes = [hasLower, hasUpper, hasDigit, hasSymbol].filter(Boolean).length;
+  const hasSingleCharRepetition = /^(.)(\1)+$/.test(secret);
+  return classes >= 3 && !hasSingleCharRepetition;
+}
+
 const authRequired = process.env["REMIXOS_AUTH_REQUIRED"] !== "false";
 const configuredJwtSecret = process.env["REMIXOS_JWT_SECRET"];
 
-if (authRequired && (!configuredJwtSecret || configuredJwtSecret.length < 32)) {
-  throw new Error("REMIXOS_JWT_SECRET must be set to a strong (>=32 chars) value when auth is enabled");
+if (authRequired && (!configuredJwtSecret || configuredJwtSecret.length < 32 || !hasStrongSecretShape(configuredJwtSecret))) {
+  throw new Error("REMIXOS_JWT_SECRET must be a strong value (>=32 chars, mixed character classes) when auth is enabled");
 }
 
 const appConfig = {
@@ -225,7 +235,7 @@ function enforceRateLimit(req: GatewayRequest, res: express.Response, next: expr
   cleanupRateLimitStore(now);
 
   const existing = rateLimitStore.get(key);
-  if (!existing) {
+  if (!existing || existing.resetAt <= now) {
     rateLimitStore.set(key, { count: 1, resetAt: now + appConfig.rateLimitWindowMs });
     next();
     return;
