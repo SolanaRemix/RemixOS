@@ -52,10 +52,18 @@ function hasStrongSecretShape(secret: string): boolean {
   return classes >= 3 && !isAllSameCharacter;
 }
 
+function isWeakJwtSecret(secret: string | undefined): boolean {
+  return !secret || secret.length < 32 || !hasStrongSecretShape(secret);
+}
+
+function calculateRateLimitCleanupInterval(windowMs: number): number {
+  return Math.min(60000, Math.max(5000, Math.floor(windowMs / 2)));
+}
+
 const authRequired = process.env["REMIXOS_AUTH_REQUIRED"] !== "false";
 const configuredJwtSecret = process.env["REMIXOS_JWT_SECRET"];
 
-if (authRequired && (!configuredJwtSecret || configuredJwtSecret.length < 32 || !hasStrongSecretShape(configuredJwtSecret))) {
+if (authRequired && isWeakJwtSecret(configuredJwtSecret)) {
   throw new Error("REMIXOS_JWT_SECRET must be a strong value (>=32 chars, mixed character classes) when auth is enabled");
 }
 
@@ -106,7 +114,7 @@ function cleanupRateLimitStore(now = Date.now()): void {
 
 setInterval(() => {
   cleanupRateLimitStore();
-}, Math.min(60000, Math.max(5000, Math.floor(appConfig.rateLimitWindowMs / 2)))).unref();
+}, calculateRateLimitCleanupInterval(appConfig.rateLimitWindowMs)).unref();
 
 app.use(cors());
 app.use(express.json());

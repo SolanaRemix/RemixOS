@@ -46,7 +46,7 @@ describe("orchestrator", () => {
       expect(result.job.status).toBe("completed");
       expect(result.job.startedAt).toBeTypeOf("number");
       expect(result.job.completedAt).toBeTypeOf("number");
-      expect(result.job.completedAt).toBeGreaterThanOrEqual(result.job.startedAt ?? 0);
+      expect(result.job.completedAt).toBeGreaterThanOrEqual(result.job.startedAt!);
       expect(getQueuedTask(result.job.id)?.status).toBe("completed");
     }
 
