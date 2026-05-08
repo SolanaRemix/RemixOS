@@ -19,10 +19,32 @@ export default function Home() {
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [authToken, setAuthToken] = useState<string | null>(null);
   const { logs, addLog, clearLogs } = useLogs(WS_URL);
   const { theme, toggleTheme } = useTheme();
   const { showToast } = useToast();
   const { state, hydrated, setPromptDraft, setOutputTab, setActiveWorkspaceTab } = useWorkspaceState();
+
+  const issueToken = useCallback(async () => {
+    const res = await fetch(`${GATEWAY_URL}/auth/token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ workspaceId: "studio" }),
+    });
+    const data = await res.json() as Record<string, unknown>;
+    if (!res.ok || typeof data["token"] !== "string") {
+      throw new Error("Unable to establish authenticated session");
+    }
+    setAuthToken(data["token"]);
+    return data["token"];
+  }, []);
+
+  useEffect(() => {
+    issueToken().catch((error) => {
+      const message = error instanceof Error ? error.message : "Authentication failed";
+      showToast({ title: "Authentication failed", description: message, variant: "error" });
+    });
+  }, [issueToken, showToast]);
 
   const handleRun = useCallback(async (prompt: string) => {
     setLoading(true);
@@ -30,9 +52,13 @@ export default function Home() {
     clearLogs();
 
     try {
+      const token = authToken ?? await issueToken();
       const res = await fetch(`${GATEWAY_URL}/run`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ prompt }),
       });
       const data = await res.json() as Record<string, unknown>;
@@ -49,7 +75,7 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, [addLog, clearLogs, showToast]);
+  }, [addLog, authToken, clearLogs, issueToken, showToast]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
