@@ -4,11 +4,30 @@
 
 :root {
   --bg: #05070a;
+  --bg-elevated: #0b1020;
+  --text: #ffffff;
+  --text-muted: rgba(255, 255, 255, 0.7);
   --glass: rgba(255, 255, 255, 0.08);
+  --glass-border: rgba(255, 255, 255, 0.2);
   --neon-purple: #8b5cf6;
   --neon-blue: #3b82f6;
   --neon-green: #22c55e;
   --neon-orange: #f97316;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+}
+
+[data-theme="light"] {
+  --bg: #f3f6ff;
+  --bg-elevated: #ffffff;
+  --text: #0f172a;
+  --text-muted: rgba(15, 23, 42, 0.72);
+  --glass: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(15, 23, 42, 0.12);
 }
 
 * {
@@ -17,7 +36,7 @@
 
 body {
   background-color: var(--bg);
-  color: #ffffff;
+  color: var(--text);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   min-height: 100vh;
 }
@@ -28,6 +47,17 @@ body {
 
 .glass-panel {
   @apply bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-4 shadow-xl;
+}
+
+.workspace-shell {
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 40%),
+    radial-gradient(circle at top left, rgba(139, 92, 246, 0.1), transparent 38%),
+    var(--bg);
+}
+
+.state-message {
+  color: var(--text-muted);
 }
 
 ::-webkit-scrollbar {
@@ -41,4 +71,13 @@ body {
 ::-webkit-scrollbar-thumb {
   background: rgba(139, 92, 246, 0.5);
   border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0ms !important;
+    scroll-behavior: auto !important;
+  }
 }
