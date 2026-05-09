@@ -1,0 +1,89 @@
+name: Deploy Preview
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+# Cancel stale preview builds for the same PR
+concurrency:
+  group: deploy-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+# Minimal permissions — only what's needed to post a PR comment
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  preview:
+    name: Vercel Preview
+    runs-on: ubuntu-latest
+    # Skip if no Vercel token is configured (e.g. forks, internal-only repos)
+    if: vars.VERCEL_ORG_ID != '' && vars.VERCEL_PROJECT_ID != ''
+    environment:
+      name: preview
+      url: ${{ steps.deploy.outputs.preview_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+        env:
+          # Inject only non-secret build-time vars here
+          NEXT_TELEMETRY_DISABLED: "1"
+
+      - name: Deploy preview to Vercel
+        id: deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+        run: |
+          PREVIEW_URL=$(npx vercel deploy \
+            --token "$VERCEL_TOKEN" \
+            --yes \
+            2>/dev/null | tail -1)
+          echo "preview_url=${PREVIEW_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Comment preview URL on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const previewUrl = '${{ steps.deploy.outputs.preview_url }}';
+            const body = [
+              '### 🚀 Preview Deployment',
+              '',
+              `**URL:** ${previewUrl}`,
+              '',
+              `Commit: \`${{ github.sha }}\``,
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });

@@ -1,0 +1,66 @@
+version: 2
+updates:
+  # ── npm / pnpm workspace ───────────────────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    rebase-strategy: "auto"
+    # Group minor + patch into a single PR; major updates get their own PR
+    groups:
+      minor-and-patch:
+        applies-to: version-updates
+        update-types: ["minor", "patch"]
+      major-updates:
+        applies-to: version-updates
+        update-types: ["major"]
+    # Never propose pre-release / unstable versions
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-prerelease"]
+    labels:
+      - "dependencies"
+      - "safe-automerge"
+
+  # ── GitHub Actions ─────────────────────────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    rebase-strategy: "auto"
+    groups:
+      github-actions:
+        applies-to: version-updates
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-prerelease"]
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "safe-automerge"
+
+  # ── Docker ─────────────────────────────────────────────────────────────────
+  - package-ecosystem: "docker"
+    directory: "/infra/docker"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 3
+    rebase-strategy: "auto"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-prerelease"]
+    labels:
+      - "dependencies"
+      - "docker"

@@ -1,0 +1,101 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+# Release jobs never overlap
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Production Release
+    runs-on: ubuntu-latest
+    # Requires manual approval via the "production" GitHub Environment
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.production_url }}
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate tag format
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if ! echo "$TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Tag '$TAG' does not match vMAJOR.MINOR.PATCH — aborting."
+            exit 1
+          fi
+          echo "Releasing $TAG"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build (production)
+        run: pnpm build
+        env:
+          NODE_ENV: production
+          NEXT_TELEMETRY_DISABLED: "1"
+
+      - name: Lint gate
+        run: pnpm lint
+
+      - name: Type check gate
+        run: pnpm typecheck
+
+      - name: Test gate
+        run: pnpm test
+
+      - name: Security audit gate
+        run: pnpm audit --audit-level=high
+
+      - name: Deploy to production (Vercel)
+        id: deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+        run: |
+          PROD_URL=$(npx vercel deploy \
+            --token "$VERCEL_TOKEN" \
+            --prod \
+            --yes \
+            2>/dev/null | tail -1)
+          echo "production_url=${PROD_URL}" >> "$GITHUB_OUTPUT"
+
+      - name: Summarize release
+        run: |
+          echo "## 🚀 Released ${{ github.ref_name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Item | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Tag | \`${{ github.ref_name }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Commit | \`${{ github.sha }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| URL | ${{ steps.deploy.outputs.production_url }} |" >> "$GITHUB_STEP_SUMMARY"

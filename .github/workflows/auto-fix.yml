@@ -1,14 +1,25 @@
-name: Auto Fix CI
+name: Self-Heal CI
 
 on:
+  # Only run self-heal on the main branch after a push (not on forks or all PRs)
   push:
-  pull_request:
+    branches: [main]
+
+# Never run two self-heal jobs for the same ref simultaneously
+concurrency:
+  group: self-heal-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
-  ci:
+  self-heal:
+    name: Self-Heal Build
     runs-on: ubuntu-latest
     permissions:
       contents: read
+
     steps:
       - uses: actions/checkout@v4
 
@@ -22,10 +33,16 @@ jobs:
         with:
           version: 9
 
-      - name: Install
-        run: |
-          corepack enable
-          pnpm install
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install (frozen)
+        run: pnpm install --frozen-lockfile
 
       - name: Build
         id: build
@@ -37,6 +54,12 @@ jobs:
         run: pnpm test
         continue-on-error: true
 
-      - name: Run Auto Fix Agent
+      - name: Run self-heal script
         if: steps.build.outcome == 'failure' || steps.test.outcome == 'failure'
-        run: node scripts/auto-fix.mjs
+        run: pnpm tsx scripts/self-heal.ts
+
+      - name: Fail if self-heal did not resolve
+        if: steps.build.outcome == 'failure' || steps.test.outcome == 'failure'
+        run: |
+          echo "::error::Build or test failed and self-heal was triggered. Check the self-heal output above."
+          exit 1

@@ -1,0 +1,100 @@
+name: Dependabot Auto-Merge
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+# Never run concurrently for the same PR
+concurrency:
+  group: dependabot-automerge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  auto-merge:
+    name: Safe Auto-Merge
+    runs-on: ubuntu-latest
+    # Only execute for Dependabot PRs
+    if: github.actor == 'dependabot[bot]'
+    permissions:
+      contents: write      # required to enable auto-merge (merge commit)
+      pull-requests: write # required to approve and merge
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Fetch Dependabot metadata (update type, package ecosystem, etc.)
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Block major-version bumps from auto-merging
+      - name: Block major updates
+        if: steps.metadata.outputs.update-type == 'version-update:semver-major'
+        run: |
+          echo "::warning::Major update detected — skipping auto-merge. Requires human review."
+          exit 0
+
+      # Verify that no forbidden application/infrastructure paths are modified.
+      # Dependabot PRs should only touch lock files, package.json files, and
+      # workflow YAML files. Any change to source code is unexpected and blocked.
+      - name: Check for forbidden path changes
+        id: path-check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          CHANGED=$(gh pr view "$PR_NUMBER" --json files --jq '[.files[].path] | .[]')
+          echo "Changed files:"
+          echo "$CHANGED"
+
+          FORBIDDEN=$(echo "$CHANGED" | grep -E \
+            '^(apps/[^/]+/src/|apps/gateway/src/|packages/[^/]+/src/|scripts/|infra/docker/|contracts/)' \
+            || true)
+
+          if [ -n "$FORBIDDEN" ]; then
+            echo "::error::Forbidden paths changed by Dependabot PR — auto-merge blocked:"
+            echo "$FORBIDDEN"
+            echo "safe=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "safe=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Only proceed if paths are safe and update is not major
+      - name: Approve PR
+        if: |
+          steps.path-check.outputs.safe == 'true' &&
+          steps.metadata.outputs.update-type != 'version-update:semver-major'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh pr review "$PR_NUMBER" --approve \
+            --body "Auto-approved: patch/minor dependency update with no forbidden path changes."
+
+      - name: Enable auto-merge (squash)
+        if: |
+          steps.path-check.outputs.safe == 'true' &&
+          steps.metadata.outputs.update-type != 'version-update:semver-major'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh pr merge "$PR_NUMBER" --auto --squash
+
+      - name: Summarize decision
+        if: always()
+        run: |
+          echo "## Dependabot Auto-Merge Decision" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Field | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| PR | #${{ github.event.pull_request.number }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Update type | ${{ steps.metadata.outputs.update-type }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Package ecosystem | ${{ steps.metadata.outputs.package-ecosystem }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Dependency name | ${{ steps.metadata.outputs.dependency-names }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Safe paths | ${{ steps.path-check.outputs.safe }} |" >> "$GITHUB_STEP_SUMMARY"
