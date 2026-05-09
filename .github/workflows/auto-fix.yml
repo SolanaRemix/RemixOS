@@ -65,11 +65,20 @@ jobs:
           fi
 
       - name: Run self-heal script
+        id: self-heal
         if: (steps.build.outcome == 'failure' || steps.test.outcome == 'failure') && steps.check-script.outputs.available == 'true'
         run: pnpm tsx scripts/self-heal.ts
 
       - name: Fail if self-heal did not resolve
         if: steps.build.outcome == 'failure' || steps.test.outcome == 'failure'
         run: |
-          echo "::error::Build or test failed and self-heal was triggered. Check the self-heal output above."
+          AVAILABLE="${{ steps.check-script.outputs.available }}"
+          HEAL_OUTCOME="${{ steps.self-heal.outcome }}"
+          if [[ "$AVAILABLE" == "false" ]]; then
+            echo "::error::Build or test failed and self-heal script was not available."
+          elif [[ "$HEAL_OUTCOME" == "failure" ]]; then
+            echo "::error::Build or test failed and the self-heal script also failed. Check self-heal output above."
+          else
+            echo "::error::Build or test failed. Self-heal ran — check individual job output for details."
+          fi
           exit 1

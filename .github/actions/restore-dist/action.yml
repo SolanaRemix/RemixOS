@@ -16,10 +16,20 @@ runs:
     - name: Restore dist directories
       shell: bash
       run: |
+        if [ ! -d .artifacts/packages ]; then
+          echo "::error::No dist artifacts found at .artifacts/packages — ensure the build job completed successfully."
+          exit 1
+        fi
+        COUNT=0
         for pkg_dir in .artifacts/packages/*/dist; do
           [ -d "$pkg_dir" ] || continue
           pkg=$(basename "$(dirname "$pkg_dir")")
           mkdir -p "packages/${pkg}/dist"
           cp -r "$pkg_dir/." "packages/${pkg}/dist/"
+          COUNT=$((COUNT + 1))
         done
-        echo "Restored dist/ for: $(ls .artifacts/packages/)"
+        if [ "$COUNT" -eq 0 ]; then
+          echo "::error::No package dist/ directories were restored. Check the build artifact contents."
+          exit 1
+        fi
+        echo "Restored dist/ for ${COUNT} package(s): $(ls .artifacts/packages/)"

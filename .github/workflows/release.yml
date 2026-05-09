@@ -31,6 +31,8 @@ jobs:
       - name: Validate tag format
         run: |
           TAG="${GITHUB_REF_NAME}"
+          # Accepts vMAJOR.MINOR.PATCH with optional pre-release (-alpha.1, -beta.2)
+          # and optional build metadata (+20240101). Covers the full semver spec.
           if ! echo "$TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9][a-zA-Z0-9.-]*)?(\+[a-zA-Z0-9.-]+)?$'; then
             echo "::error::Tag '$TAG' does not match vMAJOR.MINOR.PATCH[-prerelease][+build] — aborting."
             exit 1
