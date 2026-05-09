@@ -19,7 +19,7 @@ jobs:
     # Only execute for Dependabot PRs
     if: github.actor == 'dependabot[bot]'
     permissions:
-      contents: write      # required to enable auto-merge (merge commit)
+      contents: write      # required to enable auto-merge
       pull-requests: write # required to approve and merge
 
     steps:
