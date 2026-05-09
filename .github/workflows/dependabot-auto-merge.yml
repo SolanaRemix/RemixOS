@@ -54,7 +54,7 @@ jobs:
           echo "$CHANGED"
 
           # Forbidden paths: source code and deployment scripts that Dependabot
-          # should never touch. 'scripts/' is included as defence-in-depth;
+          # should never touch. 'scripts/' is included as defense-in-depth;
           # Dependabot PRs only change lock files, package.json, and workflow
           # YAML — they never modify scripts/.
           FORBIDDEN=$(echo "$CHANGED" | grep -E \
