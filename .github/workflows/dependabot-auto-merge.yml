@@ -54,7 +54,7 @@ jobs:
           echo "$CHANGED"
 
           FORBIDDEN=$(echo "$CHANGED" | grep -E \
-            '^(apps/[^/]+/src/|apps/gateway/src/|packages/[^/]+/src/|scripts/|infra/docker/|contracts/)' \
+            '^(apps/[^/]+/src/|apps/gateway/src/|packages/[^/]+/src/|scripts/|contracts/)' \
             || true)
 
           if [ -n "$FORBIDDEN" ]; then

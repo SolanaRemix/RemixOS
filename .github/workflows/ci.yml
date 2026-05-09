@@ -124,20 +124,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dist-packages
-          path: .artifacts/packages
-
-      # Restore dist directories from the downloaded artifact tree
-      - name: Restore dist into packages
-        run: |
-          for pkg_dir in .artifacts/packages/*/dist; do
-            pkg=$(basename "$(dirname "$pkg_dir")")
-            mkdir -p "packages/${pkg}/dist"
-            cp -r "$pkg_dir/." "packages/${pkg}/dist/"
-          done
+      - name: Restore built package dist directories
+        uses: ./.github/actions/restore-dist
 
       - name: Type check
         run: pnpm typecheck
@@ -173,20 +161,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dist-packages
-          path: .artifacts/packages
-
-      # Restore dist directories from the downloaded artifact tree
-      - name: Restore dist into packages
-        run: |
-          for pkg_dir in .artifacts/packages/*/dist; do
-            pkg=$(basename "$(dirname "$pkg_dir")")
-            mkdir -p "packages/${pkg}/dist"
-            cp -r "$pkg_dir/." "packages/${pkg}/dist/"
-          done
+      - name: Restore built package dist directories
+        uses: ./.github/actions/restore-dist
 
       - name: Run tests
         run: pnpm test

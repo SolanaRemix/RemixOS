@@ -1,0 +1,25 @@
+name: Restore dist packages
+description: >
+  Downloads the dist-packages artifact (produced by the build job) and
+  restores each package's dist/ directory into the checked-out source tree.
+  Use this in jobs that need pre-built workspace packages (typecheck, test).
+
+runs:
+  using: composite
+  steps:
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: dist-packages
+        path: .artifacts/packages
+
+    - name: Restore dist directories
+      shell: bash
+      run: |
+        for pkg_dir in .artifacts/packages/*/dist; do
+          [ -d "$pkg_dir" ] || continue
+          pkg=$(basename "$(dirname "$pkg_dir")")
+          mkdir -p "packages/${pkg}/dist"
+          cp -r "$pkg_dir/." "packages/${pkg}/dist/"
+        done
+        echo "Restored dist/ for: $(ls .artifacts/packages/)"
