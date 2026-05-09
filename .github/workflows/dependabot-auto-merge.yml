@@ -88,7 +88,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: gh pr merge "$PR_NUMBER" --auto --squash
+        run: |
+          if ! gh pr merge "$PR_NUMBER" --auto --squash; then
+            echo "::error::Failed to enable auto-merge on PR #${PR_NUMBER}. Ensure auto-merge is enabled in repo settings and branch protection requires status checks."
+            exit 1
+          fi
 
       - name: Summarize decision
         if: always()

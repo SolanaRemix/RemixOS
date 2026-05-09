@@ -54,8 +54,20 @@ jobs:
         run: pnpm test
         continue-on-error: true
 
+      # Consolidate build/test failure into a single flag used by subsequent steps
+      - name: Set failure flag
+        id: check-failure
+        if: always()
+        run: |
+          if [[ "${{ steps.build.outcome }}" == "failure" || "${{ steps.test.outcome }}" == "failure" ]]; then
+            echo "failed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "failed=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Verify self-heal script is available
         id: check-script
+        if: steps.check-failure.outputs.failed == 'true'
         run: |
           if [ -f scripts/self-heal.ts ]; then
             echo "available=true" >> "$GITHUB_OUTPUT"
@@ -66,11 +78,11 @@ jobs:
 
       - name: Run self-heal script
         id: self-heal
-        if: (steps.build.outcome == 'failure' || steps.test.outcome == 'failure') && steps.check-script.outputs.available == 'true'
+        if: steps.check-failure.outputs.failed == 'true' && steps.check-script.outputs.available == 'true'
         run: pnpm tsx scripts/self-heal.ts
 
       - name: Fail if self-heal did not resolve
-        if: steps.build.outcome == 'failure' || steps.test.outcome == 'failure'
+        if: steps.check-failure.outputs.failed == 'true'
         run: |
           AVAILABLE="${{ steps.check-script.outputs.available }}"
           HEAL_OUTCOME="${{ steps.self-heal.outcome }}"

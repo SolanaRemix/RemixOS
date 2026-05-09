@@ -89,7 +89,11 @@ jobs:
             --token "$VERCEL_TOKEN" \
             --prod \
             --yes \
-            2>/dev/null | tail -1)
+            2>&1 | tail -1)
+          if [ -z "$PROD_URL" ] || ! echo "$PROD_URL" | grep -q '^https://'; then
+            echo "::error::Vercel production deployment failed or returned an unexpected output: ${PROD_URL}"
+            exit 1
+          fi
           echo "production_url=${PROD_URL}" >> "$GITHUB_OUTPUT"
 
       - name: Summarize release

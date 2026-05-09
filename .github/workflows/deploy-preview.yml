@@ -66,7 +66,11 @@ jobs:
           PREVIEW_URL=$(npx vercel deploy \
             --token "$VERCEL_TOKEN" \
             --yes \
-            2>/dev/null | tail -1)
+            2>&1 | tail -1)
+          if [ -z "$PREVIEW_URL" ] || ! echo "$PREVIEW_URL" | grep -q '^https://'; then
+            echo "::error::Vercel preview deployment failed or returned an unexpected output: ${PREVIEW_URL}"
+            exit 1
+          fi
           echo "preview_url=${PREVIEW_URL}" >> "$GITHUB_OUTPUT"
 
       - name: Comment preview URL on PR
