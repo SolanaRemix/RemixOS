@@ -215,6 +215,9 @@ jobs:
           fail-on-severity: high
 
   # ── 7. CI Gate — single required status check ─────────────────────────────
+  # Note: dependency-review is intentionally excluded from this gate because it
+  # only runs on pull_request events (not push to main). Branch protection should
+  # require it as a separate required check for PRs.
   ci-gate:
     name: CI Gate
     runs-on: ubuntu-latest
@@ -225,7 +228,13 @@ jobs:
     steps:
       - name: Check all jobs passed
         run: |
-          RESULTS=("${{ needs.lint.result }}" "${{ needs.build.result }}" "${{ needs.typecheck.result }}" "${{ needs.test.result }}" "${{ needs.audit.result }}")
+          RESULTS=(
+            "${{ needs.lint.result }}"
+            "${{ needs.build.result }}"
+            "${{ needs.typecheck.result }}"
+            "${{ needs.test.result }}"
+            "${{ needs.audit.result }}"
+          )
           FAILED=0
           for RESULT in "${RESULTS[@]}"; do
             if [[ "$RESULT" != "success" ]]; then
@@ -250,5 +259,7 @@ jobs:
           echo "| Type Check | ${{ needs.typecheck.result }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Tests | ${{ needs.test.result }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Dependency Audit | ${{ needs.audit.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "> dependency-review runs as a separate PR-only check (not included in this gate)" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "**Ref:** \`${{ github.ref }}\`  **SHA:** \`${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"

@@ -54,14 +54,19 @@ jobs:
         run: pnpm test
         continue-on-error: true
 
-      - name: Run self-heal script
-        if: steps.build.outcome == 'failure' || steps.test.outcome == 'failure'
+      - name: Verify self-heal script is available
+        id: check-script
         run: |
-          if [ ! -f scripts/self-heal.ts ]; then
-            echo "::error::scripts/self-heal.ts not found — cannot self-heal."
-            exit 1
+          if [ -f scripts/self-heal.ts ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::scripts/self-heal.ts not found — self-heal step will be skipped."
+            echo "available=false" >> "$GITHUB_OUTPUT"
           fi
-          pnpm tsx scripts/self-heal.ts
+
+      - name: Run self-heal script
+        if: (steps.build.outcome == 'failure' || steps.test.outcome == 'failure') && steps.check-script.outputs.available == 'true'
+        run: pnpm tsx scripts/self-heal.ts
 
       - name: Fail if self-heal did not resolve
         if: steps.build.outcome == 'failure' || steps.test.outcome == 'failure'

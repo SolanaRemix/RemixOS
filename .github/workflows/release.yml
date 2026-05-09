@@ -31,8 +31,8 @@ jobs:
       - name: Validate tag format
         run: |
           TAG="${GITHUB_REF_NAME}"
-          if ! echo "$TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "::error::Tag '$TAG' does not match vMAJOR.MINOR.PATCH — aborting."
+          if ! echo "$TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9][a-zA-Z0-9.-]*)?(\+[a-zA-Z0-9.-]+)?$'; then
+            echo "::error::Tag '$TAG' does not match vMAJOR.MINOR.PATCH[-prerelease][+build] — aborting."
             exit 1
           fi
           echo "Releasing $TAG"
