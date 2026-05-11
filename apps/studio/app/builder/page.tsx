@@ -56,7 +56,6 @@ const STYLES: Array<{ value: WebsiteStyle; label: string; description: string }>
   { value: "bold", label: "Bold", description: "Strong, impactful visuals" },
   { value: "elegant", label: "Elegant", description: "Refined, sophisticated" },
 ];
-const HEADER_HEIGHT_PX = 65;
 
 // ─── Website Generator ────────────────────────────────────────────────────────
 
@@ -388,7 +387,7 @@ export default function BuilderPage() {
 
       <div
         className="flex flex-col lg:flex-row"
-        style={{ minHeight: `calc(100vh - ${HEADER_HEIGHT_PX}px)` }}
+        style={{ minHeight: "calc(100vh - var(--app-header-height, 65px))" }}
       >
         {/* Left Panel — Configuration */}
         <div className="w-full lg:w-80 lg:flex-shrink-0 border-b lg:border-b-0 lg:border-r border-white/10 overflow-y-auto p-4 space-y-4">

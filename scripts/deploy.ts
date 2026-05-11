@@ -211,7 +211,15 @@ async function deployVps(opts: DeployOptions): Promise<void> {
     /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$/,
   );
   const user = ensureSafeIdentifier(rawUser, "VPS_USER", /^[a-zA-Z_][a-zA-Z0-9_-]*$/);
-  const appDir = ensureSafeIdentifier(rawAppDir, "VPS_APP_DIR", /^\/(?:[a-zA-Z0-9_-]+\/?)+$/);
+  const appDirCandidate = ensureSafeIdentifier(rawAppDir, "VPS_APP_DIR", /^\/[a-zA-Z0-9_/-]+$/);
+  const appSegments = appDirCandidate.split("/").filter(Boolean);
+  if (appSegments.length === 0) {
+    throw new Error("Invalid VPS_APP_DIR: must contain at least one directory segment");
+  }
+  if (!appSegments.every((segment) => /^[a-zA-Z0-9_-]+$/.test(segment))) {
+    throw new Error("Invalid VPS_APP_DIR: contains unsupported path segment");
+  }
+  const appDir = `/${appSegments.join("/")}`;
 
   log("step", `Deploying to VPS (${host})…`);
 

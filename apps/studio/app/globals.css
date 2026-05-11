@@ -19,6 +19,7 @@
   --space-4: 1rem;
   --space-5: 1.25rem;
   --space-6: 1.5rem;
+  --app-header-height: 65px;
 }
 
 [data-theme="light"] {
