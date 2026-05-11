@@ -211,10 +211,7 @@ async function deployVps(opts: DeployOptions): Promise<void> {
     /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$/,
   );
   const user = ensureSafeIdentifier(rawUser, "VPS_USER", /^[a-zA-Z_][a-zA-Z0-9_-]*$/);
-  const appDir = ensureSafeIdentifier(rawAppDir, "VPS_APP_DIR", /^\/[a-zA-Z0-9/_-]+$/);
-  if (appDir.includes("//")) {
-    throw new Error("Invalid VPS_APP_DIR: repeated slashes are not allowed");
-  }
+  const appDir = ensureSafeIdentifier(rawAppDir, "VPS_APP_DIR", /^\/(?:[a-zA-Z0-9_-]+\/?)+$/);
 
   log("step", `Deploying to VPS (${host})…`);
 

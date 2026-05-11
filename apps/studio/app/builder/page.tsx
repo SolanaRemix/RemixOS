@@ -567,6 +567,7 @@ export default function BuilderPage() {
 
               {/* Content */}
               {buildState.step === "complete" && activeTab === "preview" ? (
+                // Intentionally fully sandboxed for untrusted generated HTML preview isolation.
                 <iframe
                   ref={iframeRef}
                   className="flex-1 w-full bg-white"
