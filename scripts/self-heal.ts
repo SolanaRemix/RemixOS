@@ -5,7 +5,7 @@
  * Exits with code 1 if the system cannot be healed — never reports false-green.
  */
 
-import { spawnSync, execSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -13,7 +13,8 @@ import path from "node:path";
 
 interface HealStep {
   name: string;
-  cmd: string;
+  file: string;
+  args: string[];
   critical: boolean;
 }
 
@@ -36,10 +37,9 @@ function log(level: "info" | "warn" | "error" | "success", message: string): voi
 
 const rootDir = path.resolve(import.meta.dirname ?? process.cwd(), "..");
 
-function run(cmd: string, silent = false): { success: boolean; durationMs: number; output: string } {
+function run(file: string, args: string[], silent = false): { success: boolean; durationMs: number; output: string } {
   const start = Date.now();
-  const result = spawnSync(cmd, {
-    shell: true,
+  const result = spawnSync(file, args, {
     stdio: silent ? "pipe" : "inherit",
     cwd: rootDir,
   });
@@ -104,10 +104,10 @@ function clearDistDirs(): void {
 // ─── Heal Pipeline ────────────────────────────────────────────────────────────
 
 const HEAL_STEPS: HealStep[] = [
-  { name: "install",   cmd: "pnpm install --frozen-lockfile", critical: true },
-  { name: "build",     cmd: "pnpm build",                     critical: true },
-  { name: "typecheck", cmd: "pnpm typecheck",                  critical: false },
-  { name: "test",      cmd: "pnpm test",                       critical: true },
+  { name: "install", file: "pnpm", args: ["install", "--frozen-lockfile"], critical: true },
+  { name: "build", file: "pnpm", args: ["build"], critical: true },
+  { name: "typecheck", file: "pnpm", args: ["typecheck"], critical: false },
+  { name: "test", file: "pnpm", args: ["test"], critical: true },
 ];
 
 const MAX_ATTEMPTS = 3;
@@ -124,8 +124,8 @@ async function selfHeal(): Promise<void> {
     let allPassed = true;
 
     for (const step of HEAL_STEPS) {
-      log("info", `  Running: ${step.name} (${step.cmd})`);
-      const result = run(step.cmd);
+      log("info", `  Running: ${step.name} (${step.file} ${step.args.join(" ")})`);
+      const result = run(step.file, step.args);
       history.push({ step: step.name, attempt, success: result.success, durationMs: result.durationMs });
 
       if (!result.success) {

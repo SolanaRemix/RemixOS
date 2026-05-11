@@ -1,0 +1,11 @@
+{
+  "name": "RemixOS Studio",
+  "short_name": "RemixOS",
+  "description": "Cyber-futuristic AI builder studio for web and mobile workflows.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#05070a",
+  "theme_color": "#0b1020",
+  "orientation": "portrait-primary",
+  "icons": []
+}

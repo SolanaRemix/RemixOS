@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useRef } from "react";
 import { NeonButton } from "@/components/NeonButton";
-import { Glass } from "@/components/Glass";
 import Link from "next/link";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -57,8 +56,6 @@ const STYLES: Array<{ value: WebsiteStyle; label: string; description: string }>
   { value: "bold", label: "Bold", description: "Strong, impactful visuals" },
   { value: "elegant", label: "Elegant", description: "Refined, sophisticated" },
 ];
-
-const GATEWAY_URL = process.env["NEXT_PUBLIC_GATEWAY_URL"] ?? "http://localhost:3001";
 
 // ─── Website Generator ────────────────────────────────────────────────────────
 
@@ -369,6 +366,12 @@ export default function BuilderPage() {
           <span className="text-sm text-white/70">AI Website Builder</span>
         </div>
         <div className="flex items-center gap-2">
+          <Link href="/" className="hidden sm:inline-flex text-xs text-white/70 hover:text-white transition-colors">
+            Studio
+          </Link>
+          <Link href="/admin" className="hidden sm:inline-flex text-xs text-white/70 hover:text-white transition-colors">
+            Admin
+          </Link>
           {buildState.step === "complete" && (
             <>
               <NeonButton variant="secondary" onClick={handleDownload}>
@@ -382,9 +385,9 @@ export default function BuilderPage() {
         </div>
       </header>
 
-      <div className="flex h-[calc(100vh-65px)]">
+      <div className="flex flex-col lg:flex-row min-h-[calc(100vh-65px)]">
         {/* Left Panel — Configuration */}
-        <div className="w-80 flex-shrink-0 border-r border-white/10 overflow-y-auto p-4 space-y-4">
+        <div className="w-full lg:w-80 lg:flex-shrink-0 border-b lg:border-b-0 lg:border-r border-white/10 overflow-y-auto p-4 space-y-4">
           {/* Description */}
           <div className="glass-panel space-y-2">
             <label className="text-xs font-semibold uppercase tracking-wider text-white/60">
@@ -518,7 +521,7 @@ export default function BuilderPage() {
         </div>
 
         {/* Right Panel — Preview */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden min-h-[50vh]">
           {buildState.step === "idle" ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center space-y-4 max-w-md px-4">
@@ -564,7 +567,7 @@ export default function BuilderPage() {
                   ref={iframeRef}
                   className="flex-1 w-full bg-white"
                   title="Website Preview"
-                  sandbox="allow-scripts"
+                  sandbox=""
                   srcDoc={buildState.html}
                 />
               ) : buildState.step === "complete" && activeTab === "code" ? (

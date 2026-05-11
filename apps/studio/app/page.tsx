@@ -148,6 +148,19 @@ export default function Home() {
           <WalletButton />
         </div>
       </header>
+      <div className="md:hidden border-b border-white/10 px-4 py-2">
+        <nav className="flex items-center gap-2 overflow-x-auto">
+          <Link href="/" className="px-3 py-1.5 rounded-lg text-xs bg-white/10 text-white whitespace-nowrap">
+            Studio
+          </Link>
+          <Link href="/builder" className="px-3 py-1.5 rounded-lg text-xs text-white/80 hover:text-white hover:bg-white/10 whitespace-nowrap">
+            AI Builder
+          </Link>
+          <Link href="/admin" className="px-3 py-1.5 rounded-lg text-xs text-white/80 hover:text-white hover:bg-white/10 whitespace-nowrap">
+            Admin
+          </Link>
+        </nav>
+      </div>
 
       {/* Main Content */}
       <main className="max-w-6xl mx-auto p-6 space-y-4">

@@ -4,8 +4,7 @@
  * Handles deployment to multiple targets: Vercel, Netlify, Docker, Railway, Fly.io, VPS.
  */
 
-import { execSync, spawnSync } from "node:child_process";
-import fs from "node:fs";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -40,29 +39,35 @@ function log(level: "info" | "warn" | "error" | "success" | "step", message: str
 
 const rootDir = path.resolve(import.meta.dirname ?? process.cwd(), "..");
 
-function run(cmd: string, options: { cwd?: string; silent?: boolean } = {}): boolean {
-  if (options.silent) {
-    const result = spawnSync(cmd, { shell: true, stdio: "pipe", cwd: options.cwd ?? rootDir });
-    return result.status === 0;
-  }
-  try {
-    execSync(cmd, { stdio: "inherit", cwd: options.cwd ?? rootDir });
-    return true;
-  } catch {
-    return false;
-  }
+function run(
+  file: string,
+  args: string[],
+  options: { cwd?: string; silent?: boolean } = {},
+): boolean {
+  const result = spawnSync(file, args, {
+    stdio: options.silent ? "pipe" : "inherit",
+    cwd: options.cwd ?? rootDir,
+  });
+  return result.status === 0;
 }
 
 function commandExists(cmd: string): boolean {
-  const result = spawnSync(cmd, ["--version"], { shell: true, stdio: "pipe" });
+  const result = spawnSync(cmd, ["--version"], { stdio: "pipe" });
   return result.status === 0;
+}
+
+function ensureSafeIdentifier(value: string, field: string, pattern: RegExp): string {
+  if (!pattern.test(value)) {
+    throw new Error(`Invalid ${field}: ${value}`);
+  }
+  return value;
 }
 
 // ─── Build ────────────────────────────────────────────────────────────────────
 
 async function buildAll(): Promise<void> {
   log("step", "Building all packages…");
-  const ok = run("pnpm build");
+  const ok = run("pnpm", ["build"]);
   if (!ok) throw new Error("Build failed");
   log("success", "Build complete.");
 }
@@ -74,14 +79,14 @@ async function preDeployChecks(opts: DeployOptions): Promise<void> {
 
   // Lint
   log("info", "  Linting…");
-  const lintOk = run("pnpm lint", { silent: true });
+  const lintOk = run("pnpm", ["lint"], { silent: true });
   if (!lintOk) {
     log("warn", "  Lint warnings detected — continuing (run pnpm lint to inspect).");
   }
 
   // Type check
   log("info", "  Type checking…");
-  const tcOk = run("pnpm typecheck", { silent: true });
+  const tcOk = run("pnpm", ["typecheck"], { silent: true });
   if (!tcOk) {
     if (opts.environment === "production") {
       throw new Error("TypeScript errors detected. Fix before deploying to production.");
@@ -91,7 +96,7 @@ async function preDeployChecks(opts: DeployOptions): Promise<void> {
 
   // Tests
   log("info", "  Running tests…");
-  const testOk = run("pnpm test", { silent: true });
+  const testOk = run("pnpm", ["test"], { silent: true });
   if (!testOk) {
     if (opts.environment === "production") {
       throw new Error("Tests failed. Fix before deploying to production.");
@@ -111,14 +116,14 @@ async function deployVercel(opts: DeployOptions): Promise<void> {
   }
 
   const flags = opts.environment === "production" ? "--prod" : "";
-  const cmd = `vercel deploy ${flags} --yes`;
-
   log("step", `Deploying to Vercel (${opts.environment})…`);
   if (!opts.dryRun) {
-    const ok = run(cmd);
+    const args = ["deploy", "--yes"];
+    if (flags) args.splice(1, 0, flags);
+    const ok = run("vercel", args);
     if (!ok) throw new Error("Vercel deployment failed");
   } else {
-    log("info", `[DRY RUN] Would run: ${cmd}`);
+    log("info", `[DRY RUN] Would run: vercel deploy ${flags} --yes`.trim());
   }
   log("success", "Vercel deployment complete.");
 }
@@ -131,14 +136,14 @@ async function deployNetlify(opts: DeployOptions): Promise<void> {
 
   const dir = "apps/studio/.next";
   const flags = opts.environment === "production" ? "--prod" : "";
-  const cmd = `netlify deploy --dir ${dir} ${flags}`;
-
   log("step", `Deploying to Netlify (${opts.environment})…`);
   if (!opts.dryRun) {
-    const ok = run(cmd);
+    const args = ["deploy", "--dir", dir];
+    if (flags) args.push(flags);
+    const ok = run("netlify", args);
     if (!ok) throw new Error("Netlify deployment failed");
   } else {
-    log("info", `[DRY RUN] Would run: ${cmd}`);
+    log("info", `[DRY RUN] Would run: netlify deploy --dir ${dir} ${flags}`.trim());
   }
   log("success", "Netlify deployment complete.");
 }
@@ -148,7 +153,7 @@ async function deployDocker(opts: DeployOptions): Promise<void> {
   log("step", "Deploying via Docker Compose…");
 
   if (!opts.dryRun) {
-    const ok = run(`docker compose -f ${composeFile} up --build -d`);
+    const ok = run("docker", ["compose", "-f", composeFile, "up", "--build", "-d"]);
     if (!ok) throw new Error("Docker deployment failed");
   } else {
     log("info", `[DRY RUN] Would run: docker compose -f ${composeFile} up --build -d`);
@@ -164,7 +169,7 @@ async function deployRailway(opts: DeployOptions): Promise<void> {
 
   log("step", "Deploying to Railway…");
   if (!opts.dryRun) {
-    const ok = run("railway up");
+    const ok = run("railway", ["up"]);
     if (!ok) throw new Error("Railway deployment failed");
   } else {
     log("info", "[DRY RUN] Would run: railway up");
@@ -181,7 +186,9 @@ async function deployFly(opts: DeployOptions): Promise<void> {
   const flags = opts.environment === "production" ? "" : "--strategy=immediate";
   log("step", "Deploying to Fly.io…");
   if (!opts.dryRun) {
-    const ok = run(`flyctl deploy ${flags}`);
+    const args = ["deploy"];
+    if (flags) args.push(flags);
+    const ok = run("flyctl", args);
     if (!ok) throw new Error("Fly.io deployment failed");
   } else {
     log("info", `[DRY RUN] Would run: flyctl deploy ${flags}`);
@@ -190,28 +197,42 @@ async function deployFly(opts: DeployOptions): Promise<void> {
 }
 
 async function deployVps(opts: DeployOptions): Promise<void> {
-  const host = process.env["VPS_HOST"];
-  const user = process.env["VPS_USER"] ?? "ubuntu";
-  const appDir = process.env["VPS_APP_DIR"] ?? "/opt/remixos";
+  const rawHost = process.env["VPS_HOST"];
+  const rawUser = process.env["VPS_USER"] ?? "ubuntu";
+  const rawAppDir = process.env["VPS_APP_DIR"] ?? "/opt/remixos";
 
-  if (!host) {
+  if (!rawHost) {
     throw new Error("VPS_HOST environment variable is required for VPS deployment.");
   }
 
+  const host = ensureSafeIdentifier(rawHost, "VPS_HOST", /^[a-zA-Z0-9.-]+$/);
+  const user = ensureSafeIdentifier(rawUser, "VPS_USER", /^[a-zA-Z_][a-zA-Z0-9_-]*$/);
+  const appDir = ensureSafeIdentifier(rawAppDir, "VPS_APP_DIR", /^\/[a-zA-Z0-9/_\-.]+$/);
+
   log("step", `Deploying to VPS (${host})…`);
 
-  const sshCmd = (cmd: string) => `ssh ${user}@${host} "${cmd}"`;
+  const sshRun = (remoteCmd: string, silent = false): boolean => {
+    return run("ssh", [`${user}@${host}`, remoteCmd], { silent });
+  };
 
   if (!opts.dryRun) {
     // Pull latest code
-    run(sshCmd(`cd ${appDir} && git pull origin main`));
+    if (!sshRun(`cd '${appDir}' && git pull origin main`)) {
+      throw new Error("VPS git pull failed");
+    }
     // Install dependencies
-    run(sshCmd(`cd ${appDir} && pnpm install --frozen-lockfile`));
+    if (!sshRun(`cd '${appDir}' && pnpm install --frozen-lockfile`)) {
+      throw new Error("VPS dependency install failed");
+    }
     // Build
-    run(sshCmd(`cd ${appDir} && pnpm build`));
+    if (!sshRun(`cd '${appDir}' && pnpm build`)) {
+      throw new Error("VPS build failed");
+    }
     // Restart services (assumes pm2 or systemd)
-    if (!run(sshCmd("pm2 reload all"), { silent: true })) {
-      run(sshCmd("systemctl restart remixos"));
+    if (!sshRun("pm2 reload all", true)) {
+      if (!sshRun("systemctl restart remixos")) {
+        throw new Error("VPS service restart failed");
+      }
     }
   } else {
     log("info", `[DRY RUN] Would SSH to ${user}@${host} and run deploy commands`);

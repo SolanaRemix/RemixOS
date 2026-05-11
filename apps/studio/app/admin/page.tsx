@@ -147,6 +147,12 @@ export default function AdminPage() {
           <span className="text-sm text-white/70">Admin</span>
         </div>
         <div className="flex items-center gap-2">
+          <Link href="/" className="hidden sm:inline-flex text-xs text-white/70 hover:text-white transition-colors">
+            Studio
+          </Link>
+          <Link href="/builder" className="hidden sm:inline-flex text-xs text-white/70 hover:text-white transition-colors">
+            Builder
+          </Link>
           <NeonButton variant="secondary" onClick={() => void checkHealth()} disabled={loadingHealth}>
             {loadingHealth ? "⟳ Refreshing…" : "⟳ Refresh"}
           </NeonButton>

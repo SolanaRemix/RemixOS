@@ -9,10 +9,10 @@
   --text-muted: rgba(255, 255, 255, 0.7);
   --glass: rgba(255, 255, 255, 0.08);
   --glass-border: rgba(255, 255, 255, 0.2);
-  --neon-purple: #8b5cf6;
-  --neon-blue: #3b82f6;
-  --neon-green: #22c55e;
-  --neon-orange: #f97316;
+  --neon-purple: #a020f0;
+  --neon-blue: #00bfff;
+  --neon-green: #00ff9f;
+  --neon-orange: #ff4500;
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
@@ -43,10 +43,12 @@ body {
 
 .btn-neon {
   @apply px-4 py-2 rounded-xl text-white bg-gradient-to-r from-purple-500 via-blue-500 to-green-500 hover:scale-105 transition-transform duration-150 font-medium shadow-lg;
+  box-shadow: 0 0 0.75rem rgba(160, 32, 240, 0.4), 0 0 1.1rem rgba(0, 191, 255, 0.25);
 }
 
 .glass-panel {
   @apply bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-4 shadow-xl;
+  box-shadow: 0 0 1.25rem rgba(160, 32, 240, 0.12), inset 0 0 0.5rem rgba(255, 255, 255, 0.05);
 }
 
 .workspace-shell {
@@ -58,6 +60,11 @@ body {
 
 .state-message {
   color: var(--text-muted);
+}
+
+.neon-edge {
+  border-color: rgba(0, 191, 255, 0.35);
+  box-shadow: 0 0 0.75rem rgba(0, 191, 255, 0.2);
 }
 
 ::-webkit-scrollbar {
@@ -79,5 +86,12 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 80ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .glass-panel {
+    @apply p-3 rounded-xl;
+    backdrop-filter: blur(10px);
   }
 }

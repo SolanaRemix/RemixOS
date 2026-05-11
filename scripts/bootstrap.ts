@@ -4,7 +4,7 @@
  * Detects environment, validates prerequisites, and initialises services.
  */
 
-import { execSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { createInterface } from "node:readline/promises";
@@ -32,13 +32,13 @@ function log(level: "info" | "warn" | "error" | "success", message: string): voi
   console.log(`${colors[level]}${icons[level]}${reset} ${message}`);
 }
 
-function run(cmd: string, options: { cwd?: string; silent?: boolean } = {}): boolean {
-  const result = spawnSync(cmd, { shell: true, stdio: options.silent ? "pipe" : "inherit", cwd: options.cwd ?? rootDir });
+function run(file: string, args: string[], options: { cwd?: string; silent?: boolean } = {}): boolean {
+  const result = spawnSync(file, args, { stdio: options.silent ? "pipe" : "inherit", cwd: options.cwd ?? rootDir });
   return result.status === 0;
 }
 
 function commandExists(cmd: string): boolean {
-  const result = spawnSync(cmd, ["--version"], { shell: true, stdio: "pipe" });
+  const result = spawnSync(cmd, ["--version"], { stdio: "pipe" });
   return result.status === 0;
 }
 
@@ -60,19 +60,12 @@ function detectPlatform(): Platform {
 }
 
 function getNodeVersion(): string {
-  try {
-    return execSync("node --version", { stdio: "pipe" }).toString().trim();
-  } catch {
-    return "unknown";
-  }
+  return process.version || "unknown";
 }
 
 function getPnpmVersion(): string {
-  try {
-    return execSync("pnpm --version", { stdio: "pipe" }).toString().trim();
-  } catch {
-    return "not installed";
-  }
+  const result = spawnSync("pnpm", ["--version"], { stdio: "pipe" });
+  return result.status === 0 ? result.stdout.toString().trim() : "not installed";
 }
 
 // ─── Prerequisites ────────────────────────────────────────────────────────────
@@ -130,7 +123,7 @@ function runPrismaMigrations(): void {
   }
 
   log("info", "Running Prisma migrations…");
-  const ok = run("pnpm --filter @remixos/database prisma migrate deploy", { silent: false });
+  const ok = run("pnpm", ["--filter", "@remixos/database", "prisma", "migrate", "deploy"], { silent: false });
   if (ok) {
     log("success", "Database migrations applied.");
   } else {
@@ -207,7 +200,7 @@ async function bootstrap(): Promise<void> {
 
   // Install dependencies
   log("info", "Installing dependencies…");
-  const installOk = run("pnpm install --frozen-lockfile");
+  const installOk = run("pnpm", ["install", "--frozen-lockfile"]);
   if (!installOk) {
     log("error", "pnpm install failed.");
     process.exit(1);
