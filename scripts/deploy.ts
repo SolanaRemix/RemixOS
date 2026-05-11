@@ -205,9 +205,16 @@ async function deployVps(opts: DeployOptions): Promise<void> {
     throw new Error("VPS_HOST environment variable is required for VPS deployment.");
   }
 
-  const host = ensureSafeIdentifier(rawHost, "VPS_HOST", /^[a-zA-Z0-9.-]+$/);
+  const host = ensureSafeIdentifier(
+    rawHost,
+    "VPS_HOST",
+    /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$/,
+  );
   const user = ensureSafeIdentifier(rawUser, "VPS_USER", /^[a-zA-Z_][a-zA-Z0-9_-]*$/);
-  const appDir = ensureSafeIdentifier(rawAppDir, "VPS_APP_DIR", /^\/[a-zA-Z0-9/_\-.]+$/);
+  const appDir = ensureSafeIdentifier(rawAppDir, "VPS_APP_DIR", /^\/[a-zA-Z0-9/_-]+$/);
+  if (appDir.includes("//")) {
+    throw new Error("Invalid VPS_APP_DIR: repeated slashes are not allowed");
+  }
 
   log("step", `Deploying to VPS (${host})…`);
 
@@ -217,15 +224,15 @@ async function deployVps(opts: DeployOptions): Promise<void> {
 
   if (!opts.dryRun) {
     // Pull latest code
-    if (!sshRun(`cd '${appDir}' && git pull origin main`)) {
+    if (!sshRun(`cd ${appDir} && git pull origin main`)) {
       throw new Error("VPS git pull failed");
     }
     // Install dependencies
-    if (!sshRun(`cd '${appDir}' && pnpm install --frozen-lockfile`)) {
+    if (!sshRun(`cd ${appDir} && pnpm install --frozen-lockfile`)) {
       throw new Error("VPS dependency install failed");
     }
     // Build
-    if (!sshRun(`cd '${appDir}' && pnpm build`)) {
+    if (!sshRun(`cd ${appDir} && pnpm build`)) {
       throw new Error("VPS build failed");
     }
     // Restart services (assumes pm2 or systemd)
