@@ -62,7 +62,7 @@ let fallbackVersionCounter = 0;
 function truncatePreview(text: string): string {
   const lines = text.split("\n").slice(0, MAX_PREVIEW_LINES);
   const preview = lines.join("\n").slice(0, MAX_PREVIEW_CHARS);
-  return preview.length < text.length ? `${preview}\n… truncated for performance` : preview;
+  return preview.length < text.length ? `${preview}\n... truncated for performance` : preview;
 }
 
 export function sanitizeWorkspaceResult(result: WorkspaceResult): WorkspaceResult {
