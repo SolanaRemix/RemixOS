@@ -1,14 +1,25 @@
-name: Auto Fix CI
+name: Self-Heal CI
 
 on:
+  # Only run self-heal on the main branch after a push (not on forks or all PRs)
   push:
-  pull_request:
+    branches: [main]
+
+# Never run two self-heal jobs for the same ref simultaneously
+concurrency:
+  group: self-heal-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
-  ci:
+  self-heal:
+    name: Self-Heal Build
     runs-on: ubuntu-latest
     permissions:
       contents: read
+
     steps:
       - uses: actions/checkout@v4
 
@@ -22,10 +33,16 @@ jobs:
         with:
           version: 9
 
-      - name: Install
-        run: |
-          corepack enable
-          pnpm install
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install (frozen)
+        run: pnpm install --frozen-lockfile
 
       - name: Build
         id: build
@@ -37,6 +54,43 @@ jobs:
         run: pnpm test
         continue-on-error: true
 
-      - name: Run Auto Fix Agent
-        if: steps.build.outcome == 'failure' || steps.test.outcome == 'failure'
-        run: node scripts/auto-fix.mjs
+      # Consolidate build/test failure into a single flag used by subsequent steps
+      - name: Set failure flag
+        id: check-failure
+        if: always()
+        run: |
+          if [[ "${{ steps.build.outcome }}" == "failure" || "${{ steps.test.outcome }}" == "failure" ]]; then
+            echo "failed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "failed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify self-heal script is available
+        id: check-script
+        if: steps.check-failure.outputs.failed == 'true'
+        run: |
+          if [ -f scripts/self-heal.ts ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::scripts/self-heal.ts not found — self-heal step will be skipped."
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run self-heal script
+        id: self-heal
+        if: steps.check-failure.outputs.failed == 'true' && steps.check-script.outputs.available == 'true'
+        run: pnpm tsx scripts/self-heal.ts
+
+      - name: Fail if self-heal did not resolve
+        if: steps.check-failure.outputs.failed == 'true'
+        run: |
+          AVAILABLE="${{ steps.check-script.outputs.available }}"
+          HEAL_OUTCOME="${{ steps.self-heal.outcome }}"
+          if [[ "$AVAILABLE" == "false" ]]; then
+            echo "::error::Build or test failed and self-heal script was not available."
+          elif [[ "$HEAL_OUTCOME" == "failure" ]]; then
+            echo "::error::Build or test failed and the self-heal script also failed. Check self-heal output above."
+          else
+            echo "::error::Build or test failed. Self-heal ran — check individual job output for details."
+          fi
+          exit 1

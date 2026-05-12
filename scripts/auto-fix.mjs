@@ -1,17 +1,20 @@
-import { execSync } from "child_process";
+import { spawnSync } from "child_process";
 
 console.log("🔧 RemixOS Self-Healing CI: Running auto-fix...");
 
-const commands = [
-  { cmd: "pnpm install", label: "Reinstalling dependencies" },
-];
+const commands = [{ file: "pnpm", args: ["install"], label: "Reinstalling dependencies" }];
 
 let ranSuccessfully = false;
 
-for (const { cmd, label } of commands) {
+function run(file, args) {
+  const result = spawnSync(file, args, { stdio: "inherit" });
+  return result.status === 0;
+}
+
+for (const { file, args, label } of commands) {
   try {
     console.log(`  ▶ ${label}...`);
-    execSync(cmd, { stdio: "inherit" });
+    if (!run(file, args)) throw new Error("command failed");
     ranSuccessfully = true;
   } catch {
     console.log(`  ✗ ${label} failed`);
@@ -21,14 +24,14 @@ for (const { cmd, label } of commands) {
 if (ranSuccessfully) {
   console.log("✅ Auto-fix complete. Re-running build and tests...");
   try {
-    execSync("pnpm build", { stdio: "inherit" });
+    if (!run("pnpm", ["build"])) throw new Error("build failed");
     console.log("✅ Build passing after auto-fix.");
   } catch {
     console.log("❌ Build still failing after auto-fix. Manual review required.");
     process.exit(1);
   }
   try {
-    execSync("pnpm test", { stdio: "inherit" });
+    if (!run("pnpm", ["test"])) throw new Error("test failed");
     console.log("✅ Tests passing after auto-fix.");
   } catch {
     console.log("❌ Tests still failing after auto-fix. Manual review required.");

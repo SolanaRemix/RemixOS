@@ -1,0 +1,30 @@
+FROM node:20-alpine AS base
+RUN corepack enable
+
+WORKDIR /app
+
+# Copy workspace files
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* tsconfig.base.json ./
+
+# Copy package manifests
+COPY apps/studio/package.json ./apps/studio/
+COPY packages/shared/package.json ./packages/shared/
+
+RUN pnpm install --frozen-lockfile
+
+# Copy source
+COPY apps/studio ./apps/studio
+COPY packages/shared ./packages/shared
+
+# Build shared first
+RUN pnpm --filter @remixos/shared build
+
+# Build studio
+RUN pnpm --filter @remixos/studio build
+
+EXPOSE 3000
+
+ENV NODE_ENV=production
+ENV PORT=3000
+
+CMD ["node", "apps/studio/server.js"]
