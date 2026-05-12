@@ -12,7 +12,7 @@ import { useTheme } from "@/components/ThemeProvider";
 import { useToast } from "@/components/ToastProvider";
 import { useLogs } from "@/hooks/useLogs";
 import { useWorkspaceState } from "@/hooks/useWorkspaceState";
-import { createProjectVersion, type ProjectVersion } from "@/lib/projectVersions";
+import { createProjectVersion, pruneVersions, sanitizeProjectSnapshot, type ProjectVersion } from "@/lib/projectVersions";
 import Link from "next/link";
 
 const GATEWAY_URL = process.env["NEXT_PUBLIC_GATEWAY_URL"] ?? "http://localhost:3001";
@@ -36,6 +36,13 @@ function isProjectVersion(value: unknown): value is ProjectVersion {
     && typeof version.snapshot.promptDraft === "string"
     && (version.snapshot.outputTab === "preview" || version.snapshot.outputTab === "code" || version.snapshot.outputTab === "json")
     && (typeof version.snapshot.result === "object" || version.snapshot.result === null);
+}
+
+function normalizeProjectVersion(version: ProjectVersion): ProjectVersion {
+  return {
+    ...version,
+    snapshot: sanitizeProjectSnapshot(version.snapshot),
+  };
 }
 
 export default function Home() {
@@ -116,7 +123,7 @@ export default function Home() {
 
       const parsed = JSON.parse(raw) as ProjectVersion[];
       if (Array.isArray(parsed)) {
-        setVersions(parsed.filter(isProjectVersion));
+        setVersions(pruneVersions(parsed.filter(isProjectVersion).map(normalizeProjectVersion)));
       }
     } catch {
       // ignore corrupted version storage
@@ -130,7 +137,22 @@ export default function Home() {
       return;
     }
 
-    window.localStorage.setItem(VERSION_STORAGE_KEY, JSON.stringify(versions));
+    const persistedVersions = pruneVersions(versions).map(normalizeProjectVersion);
+
+    try {
+      window.localStorage.setItem(VERSION_STORAGE_KEY, JSON.stringify(persistedVersions));
+    } catch {
+      const fallbackVersions = pruneVersions(persistedVersions, Math.max(1, Math.floor(persistedVersions.length / 2)));
+
+      try {
+        window.localStorage.setItem(VERSION_STORAGE_KEY, JSON.stringify(fallbackVersions));
+        if (fallbackVersions.length < versions.length) {
+          setVersions(fallbackVersions);
+        }
+      } catch {
+        // ignore storage quota failures
+      }
+    }
   }, [versions, versionsHydrated]);
 
   const saveVersion = useCallback((options?: { customName?: string; description?: string; kind?: "named" | "auto" | "safety" }) => {
@@ -140,7 +162,7 @@ export default function Home() {
     }
 
     const version = createProjectVersion(currentSnapshot, options);
-    setVersions((prev) => [version, ...prev]);
+    setVersions((prev) => pruneVersions([version, ...prev]));
     setActiveWorkspaceTab("versions");
     showToast({
       title: "Version saved",
@@ -165,7 +187,7 @@ export default function Home() {
       description: `Safety snapshot created before reverting to ${version.name}.`,
     });
 
-    setVersions((prev) => [safetyVersion, ...prev]);
+    setVersions((prev) => pruneVersions([safetyVersion, ...prev]));
     setPromptDraft(version.snapshot.promptDraft);
     setOutputTab(version.snapshot.outputTab);
     setResult(version.snapshot.result);

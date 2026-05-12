@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Glass } from "./Glass";
 import { NeonButton } from "./NeonButton";
 import {
@@ -27,6 +27,7 @@ interface ProjectVersionsPanelProps {
 }
 
 interface SideBySideRow {
+  id: string;
   kind: "context" | "change" | "add" | "delete";
   left?: string;
   right?: string;
@@ -71,26 +72,97 @@ function toSideBySideRows(lines: DiffLine[]): SideBySideRow[] {
     }
 
     if (line.type === "context") {
-      rows.push({ kind: "context", left: line.value, right: line.value });
+      rows.push({ id: `context-${index}`, kind: "context", left: line.value, right: line.value });
       continue;
     }
 
     const next = lines[index + 1];
     if (line.type === "delete" && next?.type === "add") {
-      rows.push({ kind: "change", left: line.value, right: next.value });
+      rows.push({ id: `change-${index}`, kind: "change", left: line.value, right: next.value });
       index += 1;
       continue;
     }
 
     if (line.type === "delete") {
-      rows.push({ kind: "delete", left: line.value });
+      rows.push({ id: `delete-${index}`, kind: "delete", left: line.value });
       continue;
     }
 
-    rows.push({ kind: "add", right: line.value });
+    rows.push({ id: `add-${index}`, kind: "add", right: line.value });
   }
 
   return rows;
+}
+
+function VersionMetadataEditor({
+  version,
+  onSelect,
+  onUpdateVersion,
+}: {
+  version: ProjectVersion;
+  onSelect: () => void;
+  onUpdateVersion: (versionId: string, patch: { name?: string; description?: string }) => void;
+}) {
+  const [nameDraft, setNameDraft] = useState(version.name);
+  const [descriptionDraft, setDescriptionDraft] = useState(version.description);
+
+  useEffect(() => {
+    setNameDraft(version.name);
+    setDescriptionDraft(version.description);
+  }, [version.description, version.id, version.name]);
+
+  const commitChanges = () => {
+    const patch: { name?: string; description?: string } = {};
+
+    if (nameDraft !== version.name) {
+      patch.name = nameDraft;
+    }
+
+    if (descriptionDraft !== version.description) {
+      patch.description = descriptionDraft;
+    }
+
+    if (Object.keys(patch).length > 0) {
+      onUpdateVersion(version.id, patch);
+    }
+  };
+
+  return (
+    <div className="mt-3 space-y-2">
+      <input
+        type="text"
+        value={nameDraft}
+        onFocus={onSelect}
+        onChange={(event) => setNameDraft(event.target.value)}
+        onBlur={commitChanges}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            commitChanges();
+          }
+        }}
+        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-sky-400"
+      />
+      <textarea
+        value={descriptionDraft}
+        onFocus={onSelect}
+        onChange={(event) => setDescriptionDraft(event.target.value)}
+        onBlur={commitChanges}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+            commitChanges();
+          }
+        }}
+        placeholder="Add a description"
+        rows={2}
+        className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-sky-400"
+      />
+      <div className="grid gap-1 text-xs text-white/45 sm:grid-cols-3">
+        <span>Author: {version.author}</span>
+        <span>Git ref: {version.gitRef ?? "Not linked"}</span>
+        <span>Snapshot: immutable</span>
+      </div>
+    </div>
+  );
 }
 
 function DiffContent({ section, viewMode }: { section: VersionDiffSection; viewMode: DiffViewMode }) {
@@ -108,10 +180,10 @@ function DiffContent({ section, viewMode }: { section: VersionDiffSection; viewM
   if (viewMode === "unified") {
     return (
       <div className="overflow-auto rounded-2xl border border-white/10 bg-black/20">
-        <pre className="min-w-full p-4 text-xs leading-6 text-white/75">
+        <div className="min-w-full p-4 font-mono text-xs leading-6 text-white/75 whitespace-pre-wrap break-words">
           {lines.map((line, index) => (
             <div
-              key={`${line.type}-${index}`}
+              key={`diff-line-${index}`}
               className={
                 line.type === "add"
                   ? "bg-emerald-500/10 text-emerald-200"
@@ -126,29 +198,29 @@ function DiffContent({ section, viewMode }: { section: VersionDiffSection; viewM
               {line.value || " "}
             </div>
           ))}
-        </pre>
+        </div>
       </div>
     );
   }
 
   return (
-      <div className="overflow-auto rounded-2xl border border-white/10 bg-black/20">
-        <div className="grid min-w-[720px] grid-cols-2 border-b border-white/10 text-xs uppercase tracking-[0.2em] text-white/35">
-          <div className="border-r border-white/10 px-4 py-3">Selected version</div>
-          <div className="px-4 py-3">Current workspace</div>
-        </div>
-        <div className="min-w-[720px]">
-        {rows.map((row, index) => (
-          <div key={`${row.kind}-${index}`} className="grid grid-cols-2 text-xs leading-6">
+    <div className="overflow-auto rounded-2xl border border-white/10 bg-black/20">
+      <div className="grid min-w-[720px] grid-cols-2 border-b border-white/10 text-xs uppercase tracking-[0.2em] text-white/35">
+        <div className="border-r border-white/10 px-4 py-3">Selected version</div>
+        <div className="px-4 py-3">Current workspace</div>
+      </div>
+      <div className="min-w-[720px] font-mono text-xs leading-6 whitespace-pre-wrap break-words">
+        {rows.map((row) => (
+          <div key={row.id} className="grid grid-cols-2">
             <div
-              className={`border-r border-white/10 px-4 py-1.5 ${
+              className={`border-r border-white/10 px-4 py-1.5 whitespace-pre-wrap break-words ${
                 row.kind === "change" || row.kind === "delete" ? "bg-rose-500/10 text-rose-100" : "text-white/70"
               }`}
             >
               {row.left || " "}
             </div>
             <div
-              className={`px-4 py-1.5 ${
+              className={`px-4 py-1.5 whitespace-pre-wrap break-words ${
                 row.kind === "change" || row.kind === "add" ? "bg-emerald-500/10 text-emerald-100" : "text-white/70"
               }`}
             >
@@ -312,28 +384,11 @@ export function ProjectVersionsPanel({
                         </div>
                       </div>
 
-                      <div className="mt-3 space-y-2">
-                        <input
-                          type="text"
-                          value={version.name}
-                          onFocus={() => setSelectedVersionId(version.id)}
-                          onChange={(event) => onUpdateVersion(version.id, { name: event.target.value })}
-                          className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-sky-400"
-                        />
-                        <textarea
-                          value={version.description}
-                          onFocus={() => setSelectedVersionId(version.id)}
-                          onChange={(event) => onUpdateVersion(version.id, { description: event.target.value })}
-                          placeholder="Add a description"
-                          rows={2}
-                          className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-sky-400"
-                        />
-                        <div className="grid gap-1 text-xs text-white/45 sm:grid-cols-3">
-                          <span>Author: {version.author}</span>
-                          <span>Git ref: {version.gitRef ?? "Not linked"}</span>
-                          <span>Snapshot: immutable</span>
-                        </div>
-                      </div>
+                      <VersionMetadataEditor
+                        version={version}
+                        onSelect={() => setSelectedVersionId(version.id)}
+                        onUpdateVersion={onUpdateVersion}
+                      />
                     </div>
                   );
                 })

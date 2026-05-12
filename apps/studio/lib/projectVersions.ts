@@ -52,14 +52,68 @@ interface SnapshotFile {
 }
 
 const DEFAULT_AUTHOR = "Local workspace";
+const MAX_PRECISE_DIFF_LINES = 160;
+const MAX_PRECISE_DIFF_CHARS = 24000;
+const MAX_PREVIEW_LINES = 40;
+const MAX_PREVIEW_CHARS = 4000;
+export const MAX_PROJECT_VERSIONS = 12;
 let fallbackVersionCounter = 0;
 
-function cloneSnapshot(snapshot: ProjectSnapshot): ProjectSnapshot {
-  if (typeof structuredClone === "function") {
-    return structuredClone(snapshot);
+function truncatePreview(text: string): string {
+  const lines = text.split("\n").slice(0, MAX_PREVIEW_LINES);
+  const preview = lines.join("\n").slice(0, MAX_PREVIEW_CHARS);
+  return preview.length < text.length ? `${preview}\n… truncated for performance` : preview;
+}
+
+export function sanitizeWorkspaceResult(result: WorkspaceResult): WorkspaceResult {
+  if (!result || typeof result !== "object") {
+    return null;
   }
 
-  return JSON.parse(JSON.stringify(snapshot)) as ProjectSnapshot;
+  const sanitized: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(result)) {
+    if (key === "build" && value && typeof value === "object") {
+      const build = value as Record<string, unknown>;
+      const html = typeof build["html"] === "string" ? build["html"] : undefined;
+      const code = typeof build["code"] === "string" ? build["code"] : undefined;
+
+      if (html || code) {
+        sanitized[key] = {
+          ...(html ? { html } : {}),
+          ...(code ? { code } : {}),
+        };
+      }
+      continue;
+    }
+
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+      sanitized[key] = value;
+    }
+  }
+
+  return Object.keys(sanitized).length > 0 ? sanitized : null;
+}
+
+export function sanitizeProjectSnapshot(snapshot: ProjectSnapshot): ProjectSnapshot {
+  return {
+    promptDraft: snapshot.promptDraft,
+    outputTab: snapshot.outputTab,
+    result: sanitizeWorkspaceResult(snapshot.result),
+  };
+}
+
+export function pruneVersions<T>(versions: T[], maxVersions = MAX_PROJECT_VERSIONS): T[] {
+  return versions.slice(0, maxVersions);
+}
+
+function cloneSnapshot(snapshot: ProjectSnapshot): ProjectSnapshot {
+  const sanitized = sanitizeProjectSnapshot(snapshot);
+  if (typeof structuredClone === "function") {
+    return structuredClone(sanitized);
+  }
+
+  return JSON.parse(JSON.stringify(sanitized)) as ProjectSnapshot;
 }
 
 function formatTimestamp(createdAt: string): string {
@@ -209,6 +263,23 @@ export function formatVersionDate(createdAt: string): string {
 export function computeLineDiff(before: string, after: string): DiffLine[] {
   const left = before.split("\n");
   const right = after.split("\n");
+
+  if (
+    left.length > MAX_PRECISE_DIFF_LINES
+    || right.length > MAX_PRECISE_DIFF_LINES
+    || before.length > MAX_PRECISE_DIFF_CHARS
+    || after.length > MAX_PRECISE_DIFF_CHARS
+  ) {
+    return [
+      {
+        type: "context",
+        value: "Diff too large for precise rendering. Showing truncated previews instead.",
+      },
+      ...(before ? [{ type: "delete" as const, value: truncatePreview(before) }] : []),
+      ...(after ? [{ type: "add" as const, value: truncatePreview(after) }] : []),
+    ];
+  }
+
   const dp = Array.from({ length: left.length + 1 }, () => Array<number>(right.length + 1).fill(0));
 
   for (let i = left.length - 1; i >= 0; i -= 1) {

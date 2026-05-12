@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { sanitizeWorkspaceResult } from "@/lib/projectVersions";
 
 export type WorkspaceTab = "studio" | "versions";
 export type OutputTab = "preview" | "code" | "json";
@@ -55,7 +56,20 @@ export function useWorkspaceState() {
 
   useEffect(() => {
     if (!hydrated) return;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    const persistedState = {
+      ...state,
+      result: sanitizeWorkspaceResult(state.result),
+    };
+
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(persistedState));
+    } catch {
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...persistedState, result: null }));
+      } catch {
+        // ignore storage quota failures
+      }
+    }
   }, [hydrated, state]);
 
   return useMemo(() => ({
