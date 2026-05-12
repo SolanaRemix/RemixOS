@@ -132,12 +132,12 @@ function DiffContent({ section, viewMode }: { section: VersionDiffSection; viewM
   }
 
   return (
-    <div className="overflow-auto rounded-2xl border border-white/10 bg-black/20">
-      <div className="grid min-w-[720px] grid-cols-2 border-b border-white/10 text-xs uppercase tracking-[0.2em] text-white/35">
-        <div className="border-r border-white/10 px-4 py-3">Selected version</div>
-        <div className="px-4 py-3">Current workspace</div>
-      </div>
-      <div className="min-w-[720px]">
+      <div className="overflow-auto rounded-2xl border border-white/10 bg-black/20">
+        <div className="grid min-w-[720px] grid-cols-2 border-b border-white/10 text-xs uppercase tracking-[0.2em] text-white/35">
+          <div role="columnheader" className="border-r border-white/10 px-4 py-3">Selected version</div>
+          <div role="columnheader" className="px-4 py-3">Current workspace</div>
+        </div>
+        <div className="min-w-[720px]">
         {rows.map((row, index) => (
           <div key={`${row.kind}-${index}`} className="grid grid-cols-2 text-xs leading-6">
             <div
@@ -286,7 +286,10 @@ export function ProjectVersionsPanel({
                       <div className="flex items-start justify-between gap-3">
                         <div className="space-y-2">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className={`rounded-full border px-2 py-0.5 text-[11px] ${getVersionKindBadgeClass(version.kind)}`}>
+                            <span
+                              aria-label={`Version type: ${getVersionBadge(version.kind)}`}
+                              className={`rounded-full border px-2 py-0.5 text-[11px] ${getVersionKindBadgeClass(version.kind)}`}
+                            >
                               {getVersionBadge(version.kind)}
                             </span>
                             <span className="text-xs text-white/45">{formatVersionDate(version.createdAt)}</span>
@@ -430,7 +433,12 @@ export function ProjectVersionsPanel({
                   RemixOS will create a pre-revert safety snapshot first, then restore this version.
                 </p>
               </div>
-              <button type="button" onClick={() => setRevertTargetId(null)} className="text-white/45 hover:text-white">
+              <button
+                type="button"
+                aria-label="Close revert dialog"
+                onClick={() => setRevertTargetId(null)}
+                className="text-white/45 hover:text-white"
+              >
                 ✕
               </button>
             </div>
