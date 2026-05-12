@@ -59,25 +59,6 @@ const STYLES: Array<{ value: WebsiteStyle; label: string; description: string }>
 
 // ─── Website Generator ────────────────────────────────────────────────────────
 
-function buildPromptFromConfig(config: BuilderConfig): string {
-  const colors = COLOR_SCHEMES.find((c) => c.value === config.colorScheme);
-  const parts: string[] = [
-    `Build a professional ${config.category} website.`,
-    `Description: ${config.description}`,
-    `Style: ${config.style}`,
-    `Color scheme: ${config.colorScheme} (primary: ${colors?.primary ?? "#8b5cf6"})`,
-  ];
-
-  if (config.pages.length > 0) {
-    parts.push(`Include pages: ${config.pages.join(", ")}`);
-  }
-  if (config.includeAuth) parts.push("Include authentication (sign in / sign up).");
-  if (config.includePayments) parts.push("Include payments / pricing section.");
-
-  parts.push("Generate complete, production-ready HTML with embedded CSS and responsive design.");
-  return parts.join(" ");
-}
-
 function generateWebsiteHtml(config: BuilderConfig, description: string): string {
   const colors = COLOR_SCHEMES.find((c) => c.value === config.colorScheme) ?? COLOR_SCHEMES[0]!;
   const title = description.slice(0, 60) || "My Website";

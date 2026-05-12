@@ -37,17 +37,14 @@ function log(level: "info" | "warn" | "error" | "success", message: string): voi
 
 const rootDir = path.resolve(import.meta.dirname ?? process.cwd(), "..");
 
-function run(file: string, args: string[], silent = false): { success: boolean; durationMs: number; output: string } {
+function run(file: string, args: string[]): { success: boolean; durationMs: number } {
   const start = Date.now();
   const result = spawnSync(file, args, {
-    stdio: silent ? "pipe" : "inherit",
+    stdio: "inherit",
     cwd: rootDir,
   });
   const durationMs = Date.now() - start;
-  const output = silent
-    ? [result.stdout?.toString() ?? "", result.stderr?.toString() ?? ""].join("\n").trim()
-    : "";
-  return { success: result.status === 0, durationMs, output };
+  return { success: result.status === 0, durationMs };
 }
 
 // ─── Repair Strategies ────────────────────────────────────────────────────────

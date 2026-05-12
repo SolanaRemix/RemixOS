@@ -7,7 +7,6 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { createInterface } from "node:readline/promises";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -107,8 +106,15 @@ function ensureEnvFile(): void {
         "# STRIPE_WEBHOOK_SECRET=",
         "",
       ].join("\n");
-      fs.writeFileSync(envPath, defaults);
-      log("info", "Created default .env file.");
+      try {
+        fs.writeFileSync(envPath, defaults, { flag: "wx" });
+        log("info", "Created default .env file.");
+      } catch (error) {
+        const err = error as NodeJS.ErrnoException;
+        if (err.code !== "EEXIST") {
+          throw error;
+        }
+      }
     }
   }
 }

@@ -7,7 +7,6 @@
 
 import http from "node:http";
 import https from "node:https";
-import { spawnSync } from "node:child_process";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
