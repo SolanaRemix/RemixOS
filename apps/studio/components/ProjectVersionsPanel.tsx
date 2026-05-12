@@ -109,7 +109,7 @@ function VersionMetadataEditor({
   useEffect(() => {
     setNameDraft(version.name);
     setDescriptionDraft(version.description);
-  }, [version.description, version.id, version.name]);
+  }, [version]);
 
   const commitChanges = () => {
     const patch: { name?: string; description?: string } = {};
@@ -180,7 +180,7 @@ function DiffContent({ section, viewMode }: { section: VersionDiffSection; viewM
   if (viewMode === "unified") {
     return (
       <div className="overflow-auto rounded-2xl border border-white/10 bg-black/20">
-        <div className="min-w-full p-4 font-mono text-xs leading-6 text-white/75 whitespace-pre-wrap break-words">
+        <div className="min-w-full p-4 font-mono text-xs leading-6 text-white/75 whitespace-pre">
           {lines.map((line, index) => (
             <div
               key={`diff-line-${index}`}
@@ -209,18 +209,18 @@ function DiffContent({ section, viewMode }: { section: VersionDiffSection; viewM
         <div className="border-r border-white/10 px-4 py-3">Selected version</div>
         <div className="px-4 py-3">Current workspace</div>
       </div>
-      <div className="min-w-[720px] font-mono text-xs leading-6 whitespace-pre-wrap break-words">
+      <div className="min-w-[720px] font-mono text-xs leading-6 whitespace-pre">
         {rows.map((row) => (
           <div key={row.id} className="grid grid-cols-2">
             <div
-              className={`border-r border-white/10 px-4 py-1.5 whitespace-pre-wrap break-words ${
+              className={`border-r border-white/10 px-4 py-1.5 whitespace-pre ${
                 row.kind === "change" || row.kind === "delete" ? "bg-rose-500/10 text-rose-100" : "text-white/70"
               }`}
             >
               {row.left || " "}
             </div>
             <div
-              className={`px-4 py-1.5 whitespace-pre-wrap break-words ${
+              className={`px-4 py-1.5 whitespace-pre ${
                 row.kind === "change" || row.kind === "add" ? "bg-emerald-500/10 text-emerald-100" : "text-white/70"
               }`}
             >

@@ -66,7 +66,7 @@ function truncatePreview(text: string): string {
 }
 
 export function sanitizeWorkspaceResult(result: WorkspaceResult): WorkspaceResult {
-  if (!result || typeof result !== "object") {
+  if (!result || typeof result !== "object" || Array.isArray(result)) {
     return null;
   }
 
