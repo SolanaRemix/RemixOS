@@ -111,7 +111,7 @@ function DiffContent({ section, viewMode }: { section: VersionDiffSection; viewM
         <pre className="min-w-full p-4 text-xs leading-6 text-white/75">
           {lines.map((line, index) => (
             <div
-              key={`${line.type}-${index}-${line.value}`}
+              key={`${line.type}-${index}`}
               className={
                 line.type === "add"
                   ? "bg-emerald-500/10 text-emerald-200"
@@ -134,8 +134,8 @@ function DiffContent({ section, viewMode }: { section: VersionDiffSection; viewM
   return (
       <div className="overflow-auto rounded-2xl border border-white/10 bg-black/20">
         <div className="grid min-w-[720px] grid-cols-2 border-b border-white/10 text-xs uppercase tracking-[0.2em] text-white/35">
-          <div role="columnheader" className="border-r border-white/10 px-4 py-3">Selected version</div>
-          <div role="columnheader" className="px-4 py-3">Current workspace</div>
+          <div className="border-r border-white/10 px-4 py-3">Selected version</div>
+          <div className="px-4 py-3">Current workspace</div>
         </div>
         <div className="min-w-[720px]">
         {rows.map((row, index) => (

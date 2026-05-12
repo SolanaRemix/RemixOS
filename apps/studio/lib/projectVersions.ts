@@ -52,6 +52,7 @@ interface SnapshotFile {
 }
 
 const DEFAULT_AUTHOR = "Local workspace";
+let fallbackVersionCounter = 0;
 
 function cloneSnapshot(snapshot: ProjectSnapshot): ProjectSnapshot {
   if (typeof structuredClone === "function") {
@@ -132,7 +133,7 @@ export function createProjectVersion(
 ): ProjectVersion {
   const versionId = typeof globalThis.crypto?.randomUUID === "function"
     ? globalThis.crypto.randomUUID()
-    : `${createdAt}-${Math.random().toString(36).slice(2, 10)}`;
+    : `${createdAt}-${fallbackVersionCounter += 1}`;
 
   return {
     id: versionId,
