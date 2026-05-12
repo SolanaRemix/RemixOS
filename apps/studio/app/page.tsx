@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { PromptPanel } from "@/components/PromptPanel";
 import { LogsPanel } from "@/components/LogsPanel";
 import { OutputPanel } from "@/components/OutputPanel";
+import { ProjectVersionsPanel } from "@/components/ProjectVersionsPanel";
 import { WalletButton } from "@/components/WalletButton";
 import { CommandPalette } from "@/components/CommandPalette";
 import { NeonButton } from "@/components/NeonButton";
@@ -11,20 +12,55 @@ import { useTheme } from "@/components/ThemeProvider";
 import { useToast } from "@/components/ToastProvider";
 import { useLogs } from "@/hooks/useLogs";
 import { useWorkspaceState } from "@/hooks/useWorkspaceState";
+import { createProjectVersion, pruneVersions, sanitizeProjectSnapshot, type ProjectVersion } from "@/lib/projectVersions";
 import Link from "next/link";
 
 const GATEWAY_URL = process.env["NEXT_PUBLIC_GATEWAY_URL"] ?? "http://localhost:3001";
 const WS_URL = process.env["NEXT_PUBLIC_WS_URL"] ?? "ws://localhost:3001";
+const VERSION_STORAGE_KEY = "remixos.project-versions.v1";
+
+function isProjectVersion(value: unknown): value is ProjectVersion {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const version = value as Partial<ProjectVersion>;
+  return typeof version.id === "string"
+    && (version.kind === "named" || version.kind === "auto" || version.kind === "safety")
+    && typeof version.name === "string"
+    && typeof version.description === "string"
+    && typeof version.author === "string"
+    && typeof version.createdAt === "string"
+    && ("gitRef" in version ? typeof version.gitRef === "string" || version.gitRef === null : true)
+    && !!version.snapshot
+    && typeof version.snapshot.promptDraft === "string"
+    && (version.snapshot.outputTab === "preview" || version.snapshot.outputTab === "code" || version.snapshot.outputTab === "json")
+    && (typeof version.snapshot.result === "object" || version.snapshot.result === null);
+}
+
+function normalizeProjectVersion(version: ProjectVersion): ProjectVersion {
+  return {
+    ...version,
+    snapshot: sanitizeProjectSnapshot(version.snapshot),
+  };
+}
 
 export default function Home() {
-  const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
+  const [versions, setVersions] = useState<ProjectVersion[]>([]);
+  const [versionsHydrated, setVersionsHydrated] = useState(false);
   const { logs, addLog, clearLogs } = useLogs(WS_URL);
   const { theme, toggleTheme } = useTheme();
   const { showToast } = useToast();
-  const { state, hydrated, setPromptDraft, setOutputTab, setActiveWorkspaceTab } = useWorkspaceState();
+  const { state, hydrated, setPromptDraft, setOutputTab, setActiveWorkspaceTab, setResult } = useWorkspaceState();
+
+  const currentSnapshot = useMemo(() => ({
+    promptDraft: state.promptDraft,
+    outputTab: state.outputTab,
+    result: state.result,
+  }), [state.outputTab, state.promptDraft, state.result]);
 
   const issueToken = useCallback(async () => {
     const res = await fetch(`${GATEWAY_URL}/auth/token`, {
@@ -76,7 +112,92 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, [addLog, authToken, clearLogs, issueToken, showToast]);
+  }, [addLog, authToken, clearLogs, issueToken, setResult, showToast]);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(VERSION_STORAGE_KEY);
+      if (!raw) {
+        return;
+      }
+
+      const parsed = JSON.parse(raw) as ProjectVersion[];
+      if (Array.isArray(parsed)) {
+        setVersions(pruneVersions(parsed.filter(isProjectVersion).map(normalizeProjectVersion)));
+      }
+    } catch {
+      // ignore corrupted version storage
+    } finally {
+      setVersionsHydrated(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!versionsHydrated) {
+      return;
+    }
+
+    const persistedVersions = pruneVersions(versions).map(normalizeProjectVersion);
+
+    try {
+      window.localStorage.setItem(VERSION_STORAGE_KEY, JSON.stringify(persistedVersions));
+    } catch {
+      const fallbackVersions = pruneVersions(persistedVersions, Math.max(1, Math.floor(persistedVersions.length / 2)));
+
+      try {
+        window.localStorage.setItem(VERSION_STORAGE_KEY, JSON.stringify(fallbackVersions));
+        if (fallbackVersions.length < versions.length) {
+          setVersions(fallbackVersions);
+        }
+      } catch {
+        // ignore storage quota failures
+      }
+    }
+  }, [versions, versionsHydrated]);
+
+  const saveVersion = useCallback((options?: { customName?: string; description?: string; kind?: "named" | "auto" | "safety" }) => {
+    if (!currentSnapshot.promptDraft.trim() && !currentSnapshot.result) {
+      showToast({ title: "Nothing to version yet", description: "Add a prompt or generate output before saving a version.", variant: "info" });
+      return;
+    }
+
+    const version = createProjectVersion(currentSnapshot, options);
+    setVersions((prev) => pruneVersions([version, ...prev]));
+    setActiveWorkspaceTab("versions");
+    showToast({
+      title: "Version saved",
+      description: `${version.name} is now available in the Versions tab.`,
+      variant: "success",
+    });
+  }, [currentSnapshot, setActiveWorkspaceTab, showToast]);
+
+  const updateVersion = useCallback((versionId: string, patch: { name?: string; description?: string }) => {
+    setVersions((prev) => prev.map((version) => version.id === versionId
+      ? {
+        ...version,
+        name: patch.name ?? version.name,
+        description: patch.description ?? version.description,
+      }
+      : version));
+  }, []);
+
+  const revertToVersion = useCallback((version: ProjectVersion) => {
+    const safetyVersion = createProjectVersion(currentSnapshot, {
+      kind: "safety",
+      description: `Safety snapshot created before reverting to ${version.name}.`,
+    });
+
+    setVersions((prev) => pruneVersions([safetyVersion, ...prev]));
+    setPromptDraft(version.snapshot.promptDraft);
+    setOutputTab(version.snapshot.outputTab);
+    setResult(version.snapshot.result);
+    setActiveWorkspaceTab("studio");
+    showToast({
+      title: "Project reverted",
+      description: `Restored ${version.name}. A pre-revert safety snapshot was saved first.`,
+      variant: "success",
+    });
+  }, [currentSnapshot, setActiveWorkspaceTab, setOutputTab, setPromptDraft, setResult, showToast]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -90,6 +211,11 @@ export default function Home() {
   }, []);
 
   const commands = useMemo(() => ([
+    {
+      id: "save-version",
+      label: "Save project version",
+      run: () => saveVersion(),
+    },
     {
       id: "toggle-theme",
       label: "Toggle theme",
@@ -110,11 +236,11 @@ export default function Home() {
       run: () => setActiveWorkspaceTab("studio"),
     },
     {
-      id: "focus-history",
-      label: "Switch to History tab",
-      run: () => setActiveWorkspaceTab("history"),
+      id: "focus-versions",
+      label: "Switch to Versions tab",
+      run: () => setActiveWorkspaceTab("versions"),
     },
-  ]), [clearLogs, setActiveWorkspaceTab, showToast, theme, toggleTheme]);
+  ]), [clearLogs, saveVersion, setActiveWorkspaceTab, showToast, theme, toggleTheme]);
 
   return (
     <div className="workspace-shell min-h-screen">
@@ -139,6 +265,9 @@ export default function Home() {
           </Link>
         </nav>
         <div className="flex items-center gap-2">
+          <NeonButton onClick={() => saveVersion()}>
+            Save Version
+          </NeonButton>
           <NeonButton variant="secondary" onClick={toggleTheme}>
             {theme === "dark" ? "☀ Light" : "🌙 Dark"}
           </NeonButton>
@@ -174,18 +303,21 @@ export default function Home() {
           </button>
           <button
             type="button"
-            className={`rounded-lg px-3 py-1.5 text-xs ${state.activeWorkspaceTab === "history" ? "bg-white/20 text-white" : "text-white/60 hover:text-white"}`}
-            onClick={() => setActiveWorkspaceTab("history")}
+            className={`rounded-lg px-3 py-1.5 text-xs ${state.activeWorkspaceTab === "versions" ? "bg-white/20 text-white" : "text-white/60 hover:text-white"}`}
+            onClick={() => setActiveWorkspaceTab("versions")}
           >
-            History
+            Versions
           </button>
         </div>
 
-        {state.activeWorkspaceTab === "history" ? (
-          <div className="glass-panel">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-white/70">Workspace History</h2>
-            <p className="state-message mt-2 text-sm">No history entries yet. Saved runs and snapshots will appear here.</p>
-          </div>
+        {state.activeWorkspaceTab === "versions" ? (
+          <ProjectVersionsPanel
+            currentSnapshot={currentSnapshot}
+            versions={versions}
+            onCreateVersion={saveVersion}
+            onUpdateVersion={updateVersion}
+            onRevertVersion={revertToVersion}
+          />
         ) : null}
 
         {state.activeWorkspaceTab === "studio" && !hydrated ? (
@@ -207,7 +339,7 @@ export default function Home() {
         {/* Logs + Output */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <LogsPanel logs={logs} />
-              <OutputPanel result={result} tab={state.outputTab} onTabChange={setOutputTab} loading={loading} />
+              <OutputPanel result={state.result} tab={state.outputTab} onTabChange={setOutputTab} loading={loading} />
             </div>
           </>
         ) : null}

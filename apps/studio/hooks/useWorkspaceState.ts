@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { sanitizeWorkspaceResult } from "@/lib/projectVersions";
 
-export type WorkspaceTab = "studio" | "history";
+export type WorkspaceTab = "studio" | "versions";
 export type OutputTab = "preview" | "code" | "json";
+export type WorkspaceResult = Record<string, unknown> | null;
 
 interface WorkspaceState {
   activeWorkspaceTab: WorkspaceTab;
   outputTab: OutputTab;
   promptDraft: string;
+  result: WorkspaceResult;
 }
 
 const STORAGE_KEY = "remixos.workspace.v1";
@@ -17,6 +20,7 @@ const defaultState: WorkspaceState = {
   activeWorkspaceTab: "studio",
   outputTab: "preview",
   promptDraft: "",
+  result: null,
 };
 
 export function useWorkspaceState() {
@@ -28,13 +32,19 @@ export function useWorkspaceState() {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<WorkspaceState>;
+        const parsedTab = typeof (parsed as { activeWorkspaceTab?: string }).activeWorkspaceTab === "string"
+          ? (parsed as { activeWorkspaceTab?: string }).activeWorkspaceTab
+          : "studio";
         const outputTab = parsed.outputTab === "code" || parsed.outputTab === "json" || parsed.outputTab === "preview"
           ? parsed.outputTab
           : "preview";
         setState({
-          activeWorkspaceTab: parsed.activeWorkspaceTab === "history" ? "history" : "studio",
+          activeWorkspaceTab: parsedTab === "versions" || parsedTab === "history" ? "versions" : "studio",
           outputTab,
           promptDraft: typeof parsed.promptDraft === "string" ? parsed.promptDraft : "",
+          result: typeof parsed.result === "object" || parsed.result === null
+            ? (parsed.result as WorkspaceResult)
+            : null,
         });
       }
     } catch {
@@ -46,7 +56,20 @@ export function useWorkspaceState() {
 
   useEffect(() => {
     if (!hydrated) return;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    const persistedState = {
+      ...state,
+      result: sanitizeWorkspaceResult(state.result),
+    };
+
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(persistedState));
+    } catch {
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...persistedState, result: null }));
+      } catch {
+        // ignore storage quota failures
+      }
+    }
   }, [hydrated, state]);
 
   return useMemo(() => ({
@@ -55,5 +78,6 @@ export function useWorkspaceState() {
     setActiveWorkspaceTab: (activeWorkspaceTab: WorkspaceTab) => setState((prev) => ({ ...prev, activeWorkspaceTab })),
     setOutputTab: (outputTab: OutputTab) => setState((prev) => ({ ...prev, outputTab })),
     setPromptDraft: (promptDraft: string) => setState((prev) => ({ ...prev, promptDraft })),
+    setResult: (result: WorkspaceResult) => setState((prev) => ({ ...prev, result })),
   }), [hydrated, state]);
 }
