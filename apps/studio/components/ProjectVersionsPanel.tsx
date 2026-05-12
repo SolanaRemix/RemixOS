@@ -12,6 +12,7 @@ import {
   type DiffLine,
   type DiffViewMode,
   type ProjectSnapshot,
+  type ProjectVersionKind,
   type ProjectVersion,
   type VersionDiffSection,
   type VersionFilter,
@@ -45,6 +46,18 @@ function getStatusLabel(status: VersionDiffSection["status"]): string {
   if (status === "deleted") return "Deleted";
   if (status === "modified") return "Modified";
   return "Unchanged";
+}
+
+function getVersionKindBadgeClass(kind: ProjectVersionKind): string {
+  if (kind === "named") {
+    return "bg-amber-500/15 text-amber-200 border-amber-400/30";
+  }
+
+  if (kind === "safety") {
+    return "bg-rose-500/15 text-rose-200 border-rose-400/30";
+  }
+
+  return "bg-emerald-500/15 text-emerald-200 border-emerald-400/30";
 }
 
 function toSideBySideRows(lines: DiffLine[]): SideBySideRow[] {
@@ -274,7 +287,7 @@ export function ProjectVersionsPanel({
                       <div className="flex items-start justify-between gap-3">
                         <div className="space-y-2">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className={`rounded-full border px-2 py-0.5 text-[11px] ${getStatusClass(version.kind === "named" ? "modified" : version.kind === "safety" ? "deleted" : "added")}`}>
+                            <span className={`rounded-full border px-2 py-0.5 text-[11px] ${getVersionKindBadgeClass(version.kind)}`}>
                               {getVersionBadge(version.kind)}
                             </span>
                             <span className="text-xs text-white/45">{formatVersionDate(version.createdAt)}</span>

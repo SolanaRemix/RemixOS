@@ -54,6 +54,10 @@ interface SnapshotFile {
 const DEFAULT_AUTHOR = "Local workspace";
 
 function cloneSnapshot(snapshot: ProjectSnapshot): ProjectSnapshot {
+  if (typeof structuredClone === "function") {
+    return structuredClone(snapshot);
+  }
+
   return JSON.parse(JSON.stringify(snapshot)) as ProjectSnapshot;
 }
 
@@ -126,8 +130,12 @@ export function createProjectVersion(
     createdAt = new Date().toISOString(),
   }: CreateProjectVersionOptions = {},
 ): ProjectVersion {
+  const versionId = typeof globalThis.crypto?.randomUUID === "function"
+    ? globalThis.crypto.randomUUID()
+    : `${createdAt}-${Math.random().toString(36).slice(2, 10)}`;
+
   return {
-    id: `${createdAt}-${Math.random().toString(36).slice(2, 10)}`,
+    id: versionId,
     kind,
     name: customName?.trim() || `${kind === "safety" ? "Pre-revert" : "Snapshot"} · ${formatTimestamp(createdAt)}`,
     description: description?.trim() || (kind === "safety" ? "Automatic safety snapshot created before revert." : ""),
@@ -204,9 +212,18 @@ export function computeLineDiff(before: string, after: string): DiffLine[] {
 
   for (let i = left.length - 1; i >= 0; i -= 1) {
     for (let j = right.length - 1; j >= 0; j -= 1) {
-      dp[i]![j] = left[i] === right[j]
-        ? dp[i + 1]![j + 1]! + 1
-        : Math.max(dp[i + 1]![j]!, dp[i]![j + 1]!);
+      const nextDiagonal = dp[i + 1]?.[j + 1] ?? 0;
+      const nextDown = dp[i + 1]?.[j] ?? 0;
+      const nextRight = dp[i]?.[j + 1] ?? 0;
+
+      const row = dp[i];
+      if (!row) {
+        continue;
+      }
+
+      row[j] = left[i] === right[j]
+        ? nextDiagonal + 1
+        : Math.max(nextDown, nextRight);
     }
   }
 
@@ -222,7 +239,10 @@ export function computeLineDiff(before: string, after: string): DiffLine[] {
       continue;
     }
 
-    if (dp[i + 1]![j]! >= dp[i]![j + 1]!) {
+    const nextDown = dp[i + 1]?.[j] ?? 0;
+    const nextRight = dp[i]?.[j + 1] ?? 0;
+
+    if (nextDown >= nextRight) {
       lines.push({ type: "delete", value: left[i] ?? "" });
       i += 1;
     } else {

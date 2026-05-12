@@ -19,6 +19,25 @@ const GATEWAY_URL = process.env["NEXT_PUBLIC_GATEWAY_URL"] ?? "http://localhost:
 const WS_URL = process.env["NEXT_PUBLIC_WS_URL"] ?? "ws://localhost:3001";
 const VERSION_STORAGE_KEY = "remixos.project-versions.v1";
 
+function isProjectVersion(value: unknown): value is ProjectVersion {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const version = value as Partial<ProjectVersion>;
+  return typeof version.id === "string"
+    && (version.kind === "named" || version.kind === "auto" || version.kind === "safety")
+    && typeof version.name === "string"
+    && typeof version.description === "string"
+    && typeof version.author === "string"
+    && typeof version.createdAt === "string"
+    && ("gitRef" in version ? typeof version.gitRef === "string" || version.gitRef === null : true)
+    && !!version.snapshot
+    && typeof version.snapshot.promptDraft === "string"
+    && (version.snapshot.outputTab === "preview" || version.snapshot.outputTab === "code" || version.snapshot.outputTab === "json")
+    && (typeof version.snapshot.result === "object" || version.snapshot.result === null);
+}
+
 export default function Home() {
   const [loading, setLoading] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -97,7 +116,7 @@ export default function Home() {
 
       const parsed = JSON.parse(raw) as ProjectVersion[];
       if (Array.isArray(parsed)) {
-        setVersions(parsed.filter((version) => typeof version?.id === "string" && typeof version?.name === "string"));
+        setVersions(parsed.filter(isProjectVersion));
       }
     } catch {
       // ignore corrupted version storage
@@ -116,7 +135,7 @@ export default function Home() {
 
   const saveVersion = useCallback((options?: { customName?: string; description?: string; kind?: "named" | "auto" | "safety" }) => {
     if (!currentSnapshot.promptDraft.trim() && !currentSnapshot.result) {
-      showToast({ title: "Nothing to version yet", description: "Run a prompt or draft a project before saving a version.", variant: "info" });
+      showToast({ title: "Nothing to version yet", description: "Add a prompt or generate output before saving a version.", variant: "info" });
       return;
     }
 
