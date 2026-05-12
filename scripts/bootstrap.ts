@@ -85,36 +85,43 @@ function ensureEnvFile(): void {
   const envPath = path.join(rootDir, ".env");
   const envExamplePath = path.join(rootDir, ".env.example");
 
-  if (!fs.existsSync(envPath)) {
-    if (fs.existsSync(envExamplePath)) {
-      fs.copyFileSync(envExamplePath, envPath);
+  if (fs.existsSync(envExamplePath)) {
+    try {
+      fs.copyFileSync(envExamplePath, envPath, fs.constants.COPYFILE_EXCL);
       log("info", "Created .env from .env.example — please fill in your values.");
-    } else {
-      const defaults = [
-        "# RemixOS Environment Configuration",
-        "NODE_ENV=development",
-        "PORT=3001",
-        "NEXT_PUBLIC_GATEWAY_URL=http://localhost:3001",
-        "NEXT_PUBLIC_WS_URL=ws://localhost:3001",
-        "# REMIXOS_AUTH_REQUIRED=false",
-        "# REMIXOS_JWT_SECRET=<strong-secret-here>",
-        "# DATABASE_URL=postgresql://remixos:remixos_dev@localhost:5432/remixos",
-        "# REDIS_URL=redis://localhost:6379",
-        "# OPENAI_API_KEY=",
-        "# ANTHROPIC_API_KEY=",
-        "# STRIPE_SECRET_KEY=",
-        "# STRIPE_WEBHOOK_SECRET=",
-        "",
-      ].join("\n");
-      try {
-        fs.writeFileSync(envPath, defaults, { flag: "wx" });
-        log("info", "Created default .env file.");
-      } catch (error) {
-        const err = error as NodeJS.ErrnoException;
-        if (err.code !== "EEXIST") {
-          throw error;
-        }
+      return;
+    } catch (error) {
+      const err = error as NodeJS.ErrnoException;
+      if (err.code !== "EEXIST") {
+        throw error;
       }
+      return;
+    }
+  }
+
+  const defaults = [
+    "# RemixOS Environment Configuration",
+    "NODE_ENV=development",
+    "PORT=3001",
+    "NEXT_PUBLIC_GATEWAY_URL=http://localhost:3001",
+    "NEXT_PUBLIC_WS_URL=ws://localhost:3001",
+    "# REMIXOS_AUTH_REQUIRED=false",
+    "# REMIXOS_JWT_SECRET=<strong-secret-here>",
+    "# DATABASE_URL=postgresql://remixos:remixos_dev@localhost:5432/remixos",
+    "# REDIS_URL=redis://localhost:6379",
+    "# OPENAI_API_KEY=",
+    "# ANTHROPIC_API_KEY=",
+    "# STRIPE_SECRET_KEY=",
+    "# STRIPE_WEBHOOK_SECRET=",
+    "",
+  ].join("\n");
+  try {
+    fs.writeFileSync(envPath, defaults, { flag: "wx" });
+    log("info", "Created default .env file.");
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    if (err.code !== "EEXIST") {
+      throw error;
     }
   }
 }
