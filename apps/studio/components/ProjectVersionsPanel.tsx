@@ -230,7 +230,6 @@ export function ProjectVersionsPanel({
                 onCreateVersion({
                   customName: draftName,
                   description: draftDescription,
-                  kind: draftName.trim() ? "named" : "auto",
                 });
                 setDraftName("");
                 setDraftDescription("");
