@@ -32,20 +32,11 @@ export const metadata: Metadata = {
     title: "RemixOS — AI Website Builder SaaS Platform",
     description:
       "Turn plain English into professional websites. Launch your own AI website builder SaaS in minutes. Multi-provider AI, blockchain-native, deploy anywhere.",
-    images: [
-      {
-        url: "/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: "RemixOS — AI Website Builder SaaS Platform",
-      },
-    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "RemixOS — AI Website Builder SaaS Platform",
     description: "Turn plain English into professional websites. Launch your own AI website builder SaaS in minutes.",
-    images: ["/og-image.png"],
     creator: "@RemixOS",
   },
   robots: {
